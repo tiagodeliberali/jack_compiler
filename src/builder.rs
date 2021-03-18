@@ -15,7 +15,9 @@ pub fn build_content(content: String) -> String {
 }
 
 fn clean_line(line: &str) -> String {
-    let line: Vec<&str> = line.split('/').collect();
+    let line: Vec<&str> = line.split("//").collect();
+    let line = line[0];
+    let line: Vec<&str> = line.split("/*").collect();
     let line = line[0];
     String::from(line.trim())
 }

@@ -5,7 +5,7 @@ mod builder;
 mod tokenizer;
 
 use crate::builder::build_content;
-use crate::tokenizer::Tokenizer;
+use crate::tokenizer::{TokenType, Tokenizer};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -33,10 +33,62 @@ fn parse_file(filename: &str) {
 
     let clean_code = build_content(content);
 
-    let tokenizer = Tokenizer::new(clean_code);
+    let mut tokenizer = Tokenizer::new(clean_code);
+
+    print_tokens(&mut tokenizer, &filename);
 
     let mut result: Vec<String> = Vec::new();
 
-    fs::write(filename.replace(".jack", ".xml"), result.join("\r\n"))
+    fs::write(filename.replace(".jack", "2.xml"), result.join("\r\n"))
         .expect("Something failed on write file to disk");
+}
+
+fn print_tokens(tokenizer: &mut Tokenizer, filename: &str) {
+    let mut result: Vec<String> = Vec::new();
+    result.push(String::from("<tokens>"));
+
+    while tokenizer.has_next() {
+        let token = tokenizer.get_next();
+        let token = token.unwrap();
+
+        let token_type = match token.get_type() {
+            TokenType::Identifier => "identifier",
+            TokenType::Integer => "integerConstant",
+            TokenType::Keyword => "keyword",
+            TokenType::String => "stringConstant",
+            TokenType::Symbol => "symbol",
+            _ => "SOMETHING GOES WRONG HERE",
+        };
+
+        result.push(format!(
+            "<{}> {} </{}>",
+            token_type,
+            parse_symbol(token.get_value().trim()),
+            token_type
+        ));
+    }
+    result.push(String::from("</tokens>"));
+
+    fs::write(filename.replace(".jack", "T2.xml"), result.join("\r\n"))
+        .expect("Something failed on write file to disk");
+}
+
+fn parse_symbol(value: &str) -> String {
+    if value == ">" {
+        return String::from("&gt;");
+    }
+
+    if value == "<" {
+        return String::from("&lt;");
+    }
+
+    if value == "&" {
+        return String::from("&amp;");
+    }
+
+    if value == "\"" {
+        return String::from("&quot;");
+    }
+
+    String::from(value)
 }

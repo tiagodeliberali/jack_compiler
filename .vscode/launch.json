@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'jack_compiler'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=jack_compiler",
+                    "--package=jack_compiler"
+                ],
+                "filter": {
+                    "name": "jack_compiler",
+                    "kind": "bin"
+                }
+            },
+            "args": ["/home/tiagosantos/coursera/build-a-computer/projects/10/ArrayTest"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'jack_compiler'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=jack_compiler",
+                    "--package=jack_compiler"
+                ],
+                "filter": {
+                    "name": "jack_compiler",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
