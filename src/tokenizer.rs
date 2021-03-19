@@ -270,6 +270,30 @@ mod tests {
         assert_eq!(token.get_type(), TokenType::Keyword);
         assert_eq!(token.get_value(), "class");
     }
+    
+    #[test]
+    #[should_panic(expected = "Invalid presence of \" inside a Identifier")]
+    fn test_process_code_invalid_quote() {
+        let _ = process_code("test\"");
+    }
+
+    #[test]
+    #[should_panic(expected = "Incomplete string: '\"test)' starts with \" but not ends with \"")]
+    fn test_process_code_with_invalid_string() {
+        let _ = process_code("print(\"test)");
+    }
+
+    #[test]
+    #[should_panic(expected = "Non numeric char mixed inside a Integer token")]
+    fn test_process_code_number_with_invalid_char() {
+        let _ = process_code("x = 23a");
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid numeric value: 32768. Failed to parse to i16")]
+    fn test_process_code_number_too_big() {
+        let _ = process_code("x = 32768");
+    }
 
     #[test]
     fn test_process_code_call_method_with_string() {
