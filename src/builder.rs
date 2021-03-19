@@ -22,7 +22,6 @@ fn clean_line(line: &str) -> String {
     String::from(line.trim())
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

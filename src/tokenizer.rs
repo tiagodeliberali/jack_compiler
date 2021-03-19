@@ -6,10 +6,7 @@ pub struct Tokenizer {
 impl Tokenizer {
     pub fn new(code: String) -> Tokenizer {
         let tokens = process_code(&code);
-        Tokenizer {
-            tokens,
-            cursor: 0,
-        }
+        Tokenizer { tokens, cursor: 0 }
     }
 
     pub fn has_next(&self) -> bool {
@@ -270,7 +267,7 @@ mod tests {
         assert_eq!(token.get_type(), TokenType::Keyword);
         assert_eq!(token.get_value(), "class");
     }
-    
+
     #[test]
     #[should_panic(expected = "Invalid presence of \" inside a Identifier")]
     fn test_process_code_invalid_quote() {
@@ -354,8 +351,6 @@ mod tests {
         assert_eq!(token.get_type(), TokenType::Symbol);
         assert_eq!(token.get_value(), ".");
 
-        
-
         let token = result.get(3).unwrap();
         assert_eq!(token.get_type(), TokenType::Identifier);
         assert_eq!(token.get_value(), "printInt");
@@ -367,8 +362,6 @@ mod tests {
         let token = result.get(5).unwrap();
         assert_eq!(token.get_type(), TokenType::Identifier);
         assert_eq!(token.get_value(), "sum");
-
-
 
         let token = result.get(6).unwrap();
         assert_eq!(token.get_type(), TokenType::Symbol);
@@ -384,6 +377,6 @@ mod tests {
 
         let token = result.get(9).unwrap();
         assert_eq!(token.get_type(), TokenType::Symbol);
-        assert_eq!(token.get_value(), ";");        
+        assert_eq!(token.get_value(), ";");
     }
 }
