@@ -33,7 +33,7 @@ fn parse_file(filename: &str) {
 
     let clean_code = build_content(content);
 
-    let mut tokenizer = Tokenizer::new(clean_code);
+    let mut tokenizer = Tokenizer::new(&clean_code);
 
     print_tokens(&mut tokenizer, &filename);
 

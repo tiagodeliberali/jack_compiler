@@ -4,7 +4,7 @@ pub struct Tokenizer {
 }
 
 impl Tokenizer {
-    pub fn new(code: String) -> Tokenizer {
+    pub fn new(code: &str) -> Tokenizer {
         let tokens = process_code(&code);
         Tokenizer { tokens, cursor: 0 }
     }
@@ -58,18 +58,20 @@ pub enum TokenType {
 }
 
 fn process_code(code: &str) -> Vec<TokenItem> {
-    let mut current_token = String::new();
+    let mut start_token_position: usize = 0;
     let mut current_type = TokenType::None;
     let mut result: Vec<TokenItem> = Vec::new();
 
-    for c in code.chars() {
+    for (i, c) in code.chars().enumerate() {
         if c == '"' {
             match current_type {
-                TokenType::None => current_type = TokenType::String,
+                TokenType::None => {
+                    start_token_position = i;
+                    current_type = TokenType::String;
+                }
                 TokenType::String => {
-                    current_token = format!("{}{}", current_token, c);
-                    result.push(build_token(&current_token));
-                    current_token = String::new();
+                    result.push(build_token(&code[start_token_position..(i + 1)]));
+                    start_token_position = i + 1;
                     current_type = TokenType::None;
                     continue;
                 }
@@ -81,34 +83,34 @@ fn process_code(code: &str) -> Vec<TokenItem> {
         }
 
         if current_type == TokenType::String {
-            current_token = format!("{}{}", current_token, c);
             continue;
         }
 
         if c == ' ' {
-            if current_token.len() > 0 {
-                result.push(build_token(&current_token));
+            if i - start_token_position > 0 {
+                result.push(build_token(&code[start_token_position..i]));
             }
 
-            current_token = String::new();
+            start_token_position = i + 1;
             current_type = TokenType::None;
 
             continue;
         }
 
         if is_symbol(c) {
-            if current_token.len() > 0 {
-                result.push(build_token(&current_token));
+            if i - start_token_position > 0 {
+                result.push(build_token(&code[start_token_position..i]));
             }
 
             result.push(build_token(&c.to_string()));
-            current_token = String::new();
+            start_token_position = i + 1;
             current_type = TokenType::None;
 
             continue;
         }
 
         if c.is_numeric() && current_type == TokenType::None {
+            start_token_position = i;
             current_type = TokenType::Integer;
         }
 
@@ -117,14 +119,13 @@ fn process_code(code: &str) -> Vec<TokenItem> {
         }
 
         if current_type == TokenType::None {
+            start_token_position = i;
             current_type = TokenType::Identifier;
         }
-
-        current_token = format!("{}{}", current_token, c);
     }
 
-    if current_token.len() > 0 {
-        result.push(build_token(&current_token));
+    if code.len() - start_token_position > 0 {
+        result.push(build_token(&code[start_token_position..]));
     }
 
     result
@@ -317,7 +318,7 @@ mod tests {
 
     #[test]
     fn test_process_code_sum_two_numbers() {
-        let result = process_code("5 + 7");
+        let result = process_code("5 +   7");
 
         assert_eq!(result.len(), 3);
 
@@ -335,7 +336,7 @@ mod tests {
     }
     #[test]
     fn test_process_code_long_command() {
-        let result = process_code("do Output.printInt(sum / length);");
+        let result = process_code("do    Output.printInt(   sum / length  );");
 
         assert_eq!(result.len(), 10);
 
