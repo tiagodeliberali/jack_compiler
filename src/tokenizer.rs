@@ -23,6 +23,45 @@ impl Tokenizer {
         }
         None
     }
+
+    pub fn peek_next(&self) -> Option<&TokenItem> {
+        if self.has_next() {
+            return self.tokens.get(self.cursor);
+        }
+        None
+    }
+
+    pub fn consume(&mut self, value: &str) {
+        let token = self.get_next().unwrap();
+    
+        if token.get_value() != value {
+            panic!("Invalid token found. Expected {} and received {}", value, token.get_value())
+        }
+    }
+
+    pub fn retrieve_identifier(&mut self) -> String {
+        self.retrieve(TokenType::Identifier)
+    }
+
+    fn retrieve(&mut self, expected_type: TokenType) -> String {
+        let token = self.get_next().unwrap();
+
+        if token.get_type() != expected_type {
+            panic!("Invalid token type found. Expected {:?} and received {:?}", expected_type, token.get_type())
+        }
+
+        token.get_value()
+    }
+
+    pub fn retrieve_any(&mut self, expected_type: Vec<TokenType>) -> String {
+        let token = self.get_next().unwrap();
+
+        if !expected_type.contains(&token.get_type()) {
+            panic!("Invalid token type found. Expected {:?} and received {:?}", expected_type, token.get_type())
+        }
+
+        token.get_value()
+    }
 }
 
 pub struct TokenItem {

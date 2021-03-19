@@ -3,9 +3,11 @@ use std::{env, path::Path};
 
 mod builder;
 mod tokenizer;
+mod parser;
 
 use crate::builder::build_content;
 use crate::tokenizer::{TokenType, Tokenizer};
+use crate::parser::ClassNode;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -36,6 +38,8 @@ fn parse_file(filename: &str) {
     let mut tokenizer = Tokenizer::new(&clean_code);
 
     print_tokens(&mut tokenizer, &filename);
+
+    let root = ClassNode::build(&mut tokenizer);
 
     let mut result: Vec<String> = Vec::new();
 
