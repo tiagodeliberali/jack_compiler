@@ -1,3 +1,5 @@
+const OP_SYMBOLS: [&str; 9] = ["+", "-", "*", "/", "&", "|", ">", "<", "="];
+
 pub struct Tokenizer {
     tokens: Vec<TokenItem>,
     cursor: usize,
@@ -51,6 +53,14 @@ impl Tokenizer {
         self.retrieve(TokenType::Identifier)
     }
 
+    pub fn retrieve_symbol(&mut self) -> String {
+        self.retrieve(TokenType::Symbol)
+    }
+
+    pub fn retrieve_keyword(&mut self) -> String {
+        self.retrieve(TokenType::Keyword)
+    }
+
     fn retrieve(&mut self, expected_type: TokenType) -> String {
         let token = self.get_next().unwrap();
 
@@ -80,6 +90,47 @@ impl Tokenizer {
         }
 
         token.get_value()
+    }
+
+    pub fn retrieve_op(&mut self) -> String {
+        let token_value = self.retrieve_symbol();
+
+        if !OP_SYMBOLS.contains(&token_value.as_str()) {
+            panic!(format!(
+                "Invalid op. Expected {:?}, but found {}",
+                OP_SYMBOLS, token_value
+            ));
+        }
+
+        token_value
+    }
+
+    pub fn retrieve_unary_op(&mut self) -> String {
+        let valid_symbols: [&str; 2] = ["-", "~"];
+        let token_value = self.retrieve_symbol();
+
+        if !valid_symbols.contains(&token_value.as_str()) {
+            panic!(format!(
+                "Invalid unary op. Expected {:?}, but found {}",
+                valid_symbols, token_value
+            ));
+        }
+
+        token_value
+    }
+
+    pub fn retrieve_constant(&mut self) -> String {
+        let valid_symbols: [&str; 4] = ["true", "false", "null", "this"];
+        let token_value = self.retrieve_keyword();
+
+        if !valid_symbols.contains(&token_value.as_str()) {
+            panic!(format!(
+                "Invalid keyword constant. Expected {:?}, but found {}",
+                valid_symbols, token_value
+            ));
+        }
+
+        token_value
     }
 
     fn retrieve_any(&mut self, expected_type: Vec<TokenType>) -> &TokenItem {
@@ -116,6 +167,10 @@ impl TokenItem {
 
     pub fn get_value(&self) -> String {
         self.value.clone()
+    }
+
+    pub fn is_op(&self) -> bool {
+        self.token_type == TokenType::Symbol && OP_SYMBOLS.contains(&self.value.as_str())
     }
 }
 
