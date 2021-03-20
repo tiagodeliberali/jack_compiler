@@ -1,6 +1,34 @@
+use crate::parser::ClassNode;
 use crate::tokenizer::{TokenType, Tokenizer};
+use std::fs;
 
-pub fn print_tokens(tokenizer: &mut Tokenizer) -> Vec<String> {
+pub fn debug_tokenizer(filename: &str, tokenizer: &mut Tokenizer) {
+    let printable_tokens = print_tokens(tokenizer);
+
+    fs::write(
+        filename.replace(".jack", "T2.xml"),
+        printable_tokens.join("\r\n"),
+    )
+    .expect("Something failed on write file to disk");
+}
+
+pub fn debug_parsed_tree(filename: &str, root_node: &ClassNode) {
+    let mut result: Vec<String> = Vec::new();
+
+    result.push(String::from("<class>"));
+    result.push(String::from("<keyword> class </keyword>"));
+    result.push(format!(
+        "<identifier> {} </identifier>",
+        root_node.get_identifier()
+    ));
+    result.push(String::from("<symbol> { </symbol>"));
+    result.push(String::from("</class>"));
+
+    fs::write(filename.replace(".jack", "2.xml"), result.join("\r\n"))
+        .expect("Something failed on write file to disk");
+}
+
+fn print_tokens(tokenizer: &mut Tokenizer) -> Vec<String> {
     let mut result: Vec<String> = Vec::new();
     result.push(String::from("<tokens>"));
 

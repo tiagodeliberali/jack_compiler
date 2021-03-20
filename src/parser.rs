@@ -1,4 +1,4 @@
-use crate::tokenizer::{TokenType, Tokenizer};
+use crate::tokenizer::Tokenizer;
 
 pub struct ClassNode {
     identifier: String,
@@ -8,6 +8,8 @@ pub struct ClassNode {
 
 impl ClassNode {
     pub fn build(tokenizer: &mut Tokenizer) -> ClassNode {
+        tokenizer.reset();
+
         tokenizer.consume("class");
         let identifier = tokenizer.retrieve_identifier();
         tokenizer.consume("{");

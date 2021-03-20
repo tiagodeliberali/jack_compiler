@@ -7,7 +7,7 @@ mod parser;
 mod tokenizer;
 
 use crate::builder::build_content;
-use crate::debug::print_tokens;
+use crate::debug::{debug_parsed_tree, debug_tokenizer};
 use crate::parser::ClassNode;
 use crate::tokenizer::Tokenizer;
 
@@ -44,23 +44,4 @@ fn parse_file(filename: &str) {
     let root = ClassNode::build(&mut tokenizer);
 
     debug_parsed_tree(&filename, &root);
-}
-
-fn debug_tokenizer(filename: &str, tokenizer: &mut Tokenizer) {
-    let printable_tokens = print_tokens(tokenizer);
-
-    fs::write(
-        filename.replace(".jack", "T2.xml"),
-        printable_tokens.join("\r\n"),
-    )
-    .expect("Something failed on write file to disk");
-
-    tokenizer.reset();
-}
-
-fn debug_parsed_tree(filename: &str, root_node: &ClassNode) {
-    let mut result: Vec<String> = Vec::new();
-
-    fs::write(filename.replace(".jack", "2.xml"), result.join("\r\n"))
-        .expect("Something failed on write file to disk");
 }
