@@ -9,6 +9,10 @@ impl Tokenizer {
         Tokenizer { tokens, cursor: 0 }
     }
 
+    pub fn reset(&mut self) {
+        self.cursor = 0;
+    }
+
     pub fn has_next(&self) -> bool {
         self.tokens.len() > self.cursor
     }
@@ -33,9 +37,13 @@ impl Tokenizer {
 
     pub fn consume(&mut self, value: &str) {
         let token = self.get_next().unwrap();
-    
+
         if token.get_value() != value {
-            panic!("Invalid token found. Expected {} and received {}", value, token.get_value())
+            panic!(
+                "Invalid token found. Expected {} and received {}",
+                value,
+                token.get_value()
+            )
         }
     }
 
@@ -47,20 +55,45 @@ impl Tokenizer {
         let token = self.get_next().unwrap();
 
         if token.get_type() != expected_type {
-            panic!("Invalid token type found. Expected {:?} and received {:?}", expected_type, token.get_type())
+            panic!(
+                "Invalid token type found. Expected {:?} and received {:?}",
+                expected_type,
+                token.get_type()
+            )
         }
 
         token.get_value()
     }
 
-    pub fn retrieve_any(&mut self, expected_type: Vec<TokenType>) -> String {
-        let token = self.get_next().unwrap();
+    pub fn retrieve_type(&mut self) -> String {
+        let type_keywords: [&str; 3] = ["int", "char", "boolean"];
+        let token = self.retrieve_any(Vec::from([TokenType::Identifier, TokenType::Keyword]));
 
-        if !expected_type.contains(&token.get_type()) {
-            panic!("Invalid token type found. Expected {:?} and received {:?}", expected_type, token.get_type())
+        if token.get_type() == TokenType::Keyword {
+            if !type_keywords.contains(&token.get_value().as_str()) {
+                panic!(format!(
+                    "Invalid keywork. Expected {:?}, but found {}",
+                    type_keywords,
+                    token.get_value()
+                ));
+            }
         }
 
         token.get_value()
+    }
+
+    fn retrieve_any(&mut self, expected_type: Vec<TokenType>) -> &TokenItem {
+        let token = self.get_next().unwrap();
+
+        if !expected_type.contains(&token.get_type()) {
+            panic!(
+                "Invalid token type found. Expected {:?} and received {:?}",
+                expected_type,
+                token.get_type()
+            )
+        }
+
+        token
     }
 }
 
@@ -309,6 +342,15 @@ mod tests {
     }
 
     #[test]
+    fn test_retrieve_type() {
+        let mut tokenizer = Tokenizer::new("int x");
+
+        let token = tokenizer.retrieve_type();
+
+        assert_eq!(token, "int");
+    }
+
+    #[test]
     #[should_panic(expected = "Invalid presence of \" inside a Identifier")]
     fn test_process_code_invalid_quote() {
         let _ = process_code("test\"");
@@ -330,6 +372,16 @@ mod tests {
     #[should_panic(expected = "Invalid numeric value: 32768. Failed to parse to i16")]
     fn test_process_code_number_too_big() {
         let _ = process_code("x = 32768");
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Invalid keywork. Expected [\"int\", \"char\", \"boolean\"], but found void"
+    )]
+    fn test_retrieve_invalid_type() {
+        let mut tokenizer = Tokenizer::new("void x");
+
+        let _ = tokenizer.retrieve_type();
     }
 
     #[test]

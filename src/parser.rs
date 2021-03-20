@@ -1,6 +1,39 @@
-use crate::tokenizer::{Tokenizer, TokenType};
+use crate::tokenizer::{TokenType, Tokenizer};
 
+pub struct ClassNode {
+    identifier: String,
+    class_var_dec: Vec<ClassVarDec>,
+    subroutine_dec: Vec<SubroutineDec>,
+}
 
+impl ClassNode {
+    pub fn build(tokenizer: &mut Tokenizer) -> ClassNode {
+        tokenizer.consume("class");
+        let identifier = tokenizer.retrieve_identifier();
+        tokenizer.consume("{");
+        let class_var_dec = ClassVarDec::build(tokenizer);
+        let subroutine_dec = SubroutineDec::build(tokenizer);
+        tokenizer.consume("}");
+
+        ClassNode {
+            identifier,
+            class_var_dec,
+            subroutine_dec,
+        }
+    }
+
+    pub fn get_identifier(&self) -> String {
+        self.identifier.clone()
+    }
+
+    pub fn get_class_var_dec(&self) -> &Vec<ClassVarDec> {
+        &self.class_var_dec
+    }
+
+    pub fn get_subroutine_dec(&self) -> &Vec<SubroutineDec> {
+        &self.subroutine_dec
+    }
+}
 struct ClassVarDec {
     descriptor: String,
     var_type: String,
@@ -17,16 +50,16 @@ impl ClassVarDec {
                 "static" => result.push(ClassVarDec::build_field(tokenizer, "static")),
                 _ => break,
             }
-        }        
+        }
 
         result
     }
 
     fn build_field(tokenizer: &mut Tokenizer, descriptor: &str) -> ClassVarDec {
         let mut names: Vec<String> = Vec::new();
-        
+
         tokenizer.consume(descriptor);
-        let var_type = tokenizer.retrieve_any(Vec::from([TokenType::Identifier, TokenType::Keyword]));
+        let var_type = tokenizer.retrieve_type();
         let name = tokenizer.retrieve_identifier();
         names.push(name);
 
@@ -34,7 +67,7 @@ impl ClassVarDec {
             match token.get_value().as_str() {
                 "," => names.push(tokenizer.retrieve_identifier()),
                 ";" => break,
-                value => panic!(format!("Expecting ',' or ';', but retrieved '{}'", value))
+                value => panic!(format!("Expecting ',' or ';', but retrieved '{}'", value)),
             }
         }
 
@@ -59,48 +92,15 @@ impl ClassVarDec {
 }
 
 struct SubroutineDec {
-
+    descriptor: String,
+    routine_type: String,
+    name: String,
+    parameters: Vec<String>,
 }
 
 impl SubroutineDec {
     pub fn build(tokenizer: &mut Tokenizer) -> Vec<SubroutineDec> {
         Vec::new()
-    }
-}
-
-pub struct ClassNode {
-    identifier: String,
-    class_var_dec: Vec<ClassVarDec>,
-    subroutine_dec: Vec<SubroutineDec>
-}
-
-impl ClassNode {
-    pub fn build(tokenizer: &mut Tokenizer) -> ClassNode {
-
-        tokenizer.consume("class");
-        let identifier = tokenizer.retrieve_identifier();       
-        tokenizer.consume("{");
-        let class_var_dec = ClassVarDec::build(tokenizer);
-        let subroutine_dec = SubroutineDec::build(tokenizer);
-        tokenizer.consume("}");
-
-        ClassNode {
-            identifier,
-            class_var_dec,
-            subroutine_dec,
-        }
-    }
-
-    pub fn get_identifier(&self) -> String {
-        self.identifier.clone()
-    }
-
-    pub fn get_class_var_dec(&self) -> &Vec<ClassVarDec> {
-        &self.class_var_dec
-    }
-
-    pub fn get_subroutine_dec(&self) -> &Vec<SubroutineDec> {
-        &self.subroutine_dec
     }
 }
 
@@ -148,5 +148,38 @@ mod tests {
         let result = ClassVarDec::build(&mut tokenizer);
 
         assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn build_subroutine_dec_list_void_method() {
+        let mut tokenizer = Tokenizer::new("method void test(int x, String name) {var int y; let y = x + 1; do print(y, name) return;}");
+
+        let result = SubroutineDec::build(&mut tokenizer);
+
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn build_subroutine_dec_list_multiple_items() {
+        let mut tokenizer = Tokenizer::new("method void test() {} function String print() {}");
+
+        let result = SubroutineDec::build(&mut tokenizer);
+
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn build_subroutine_dec_list_string_function() {
+        let mut tokenizer = Tokenizer::new("function String print() {}");
+
+        let result = SubroutineDec::build(&mut tokenizer);
+
+        assert_eq!(result.len(), 1);
+
+        let var = result.get(0).unwrap();
+        // assert_eq!(var.get_descriptor(), "function");
+        // assert_eq!(var.get_type(), "String");
+        // assert_eq!(var.get_name(), "print");
+        // assert_eq!(var.get_parameters().len(), 0);
     }
 }
