@@ -1,4 +1,4 @@
-use crate::tokenizer::{TokenType, Tokenizer};
+use crate::tokenizer::{UNARY_OP_SYMBOLS, TokenType, Tokenizer};
 
 pub struct ClassNode {
     identifier: String,
@@ -137,6 +137,14 @@ impl Expression {
     pub fn get_term(&self) -> &Term {
         &self.term
     }
+
+    pub fn get_op(&self) -> &Option<String> {
+        &self.op
+    }
+
+    pub fn get_another_term(&self) -> &Option<Term> {
+        &self.other_term
+    }
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -150,12 +158,13 @@ enum TermType {
     Expression,
     UnaryTerm,
 }
+
 struct Term {
     term_type: TermType,
     value: String,
     class_name: Option<String>,
     expressions: Vec<Expression>,
-    unary_op: String,
+    unary_op: Option<String>,
     another_term: Box<Option<Term>>,
 }
 
@@ -182,7 +191,7 @@ impl Term {
             value: String::from(value),
             class_name: None,
             expressions: Vec::new(),
-            unary_op: String::new(),
+            unary_op: None,
             another_term: Box::new(Option::None),
         }
     }
@@ -197,7 +206,7 @@ impl Term {
             value: String::from(value),
             class_name: None,
             expressions,
-            unary_op: String::new(),
+            unary_op: None,
             another_term: Box::new(Option::None),
         }
     }
@@ -213,7 +222,7 @@ impl Term {
             value: String::from(value),
             class_name: Some(class_name),
             expressions,
-            unary_op: String::new(),
+            unary_op: None,
             another_term: Box::new(Option::None),
         }
     }
@@ -278,6 +287,12 @@ impl Term {
     fn build_expression_list(tokenizer: &mut Tokenizer) -> Vec<Expression> {
         let mut result = Vec::new();
 
+        let next_token = tokenizer.peek_next();
+
+        if next_token.is_none() || next_token.unwrap().get_value() == ")" || next_token.unwrap().get_value() == "]" {
+            return result;
+        }
+
         result.push(Expression::build(tokenizer));
 
         while let Some(next_token) = tokenizer.peek_next() {
@@ -293,7 +308,34 @@ impl Term {
     }
 
     fn build_symbol(value: &str, tokenizer: &mut Tokenizer) -> Term {
-        Term::new(TermType::UnaryTerm, String::from(value))
+        if value == "(" {
+            let expressions = Term::build_expression_list(tokenizer);
+            tokenizer.consume(")");
+
+            if expressions.len() > 1 {
+                panic!("Invalid expression list inside an expression call");
+            }
+
+            return Term::new_with_expression(
+                TermType::Expression,
+                String::from(value),
+                expressions,
+            );
+        }
+
+        if UNARY_OP_SYMBOLS.contains(&value) {
+            let mut term = Term::build(tokenizer);
+
+            if term.get_unary_op().is_some() {
+                panic!("Invalid send try to add an unary op to a term");
+            }
+
+            term.set_unary_op(String::from(value));
+
+            return term;
+        }
+
+        panic!("Invalid symbol list inside an symbol call");
     }
 
     pub fn get_type(&self) -> &TermType {
@@ -310,6 +352,14 @@ impl Term {
 
     pub fn get_class_name(&self) -> &Option<String> {
         &self.class_name
+    }
+
+    pub fn get_unary_op(&self) -> &Option<String> {
+        &self.unary_op
+    }
+
+    pub fn set_unary_op(&mut self, value: String) {
+        self.unary_op.replace(value);
     }
 }
 
@@ -431,7 +481,7 @@ mod tests {
 
     #[test]
     fn build_term_subroutine_with_class() {
-        let mut tokenizer = Tokenizer::new("Console.write(test)");
+        let mut tokenizer = Tokenizer::new("Console.write()");
 
         let result = Term::build(&mut tokenizer);
 
@@ -441,10 +491,41 @@ mod tests {
         let class_name = result.get_class_name().clone();
         assert_eq!(class_name.unwrap(), "Console");
 
+        assert_eq!(result.get_expressions().len(), 0);
+    }
+
+    #[test]
+    fn build_symbol_with_expression() {
+        let mut tokenizer = Tokenizer::new("(x + 2)");
+
+        let result = Term::build(&mut tokenizer);
+
+        assert_eq!(result.get_type(), &TermType::Expression);
+
         assert_eq!(result.get_expressions().len(), 1);
 
         let expression = result.get_expressions().get(0).unwrap();
-        assert_eq!(expression.get_term().get_value(), "test");
+
+        assert_eq!(expression.get_term().get_value(), "x");
+
+        let op = expression.get_op().clone();
+        assert_eq!(op.unwrap(), "+");
+
+        let another_term = expression.get_another_term().as_ref();
+        assert_eq!(another_term.unwrap().get_value(), "2");
+    }
+
+    #[test]
+    fn build_symbol_with_unary() {
+        let mut tokenizer = Tokenizer::new("-x");
+
+        let result = Term::build(&mut tokenizer);
+
+        assert_eq!(result.get_type(), &TermType::VarName);
+        assert_eq!(result.get_value(), "x");
+        assert_eq!(result.get_unary_op().as_ref().unwrap(), "-");
+
+        assert_eq!(result.get_expressions().len(), 0);
     }
 
     // #[test]

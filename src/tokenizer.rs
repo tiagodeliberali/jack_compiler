@@ -1,4 +1,5 @@
 const OP_SYMBOLS: [&str; 9] = ["+", "-", "*", "/", "&", "|", ">", "<", "="];
+pub const UNARY_OP_SYMBOLS: [&str; 2] = ["-", "~"];
 
 pub struct Tokenizer {
     tokens: Vec<TokenItem>,
@@ -106,13 +107,12 @@ impl Tokenizer {
     }
 
     pub fn retrieve_unary_op(&mut self) -> String {
-        let valid_symbols: [&str; 2] = ["-", "~"];
         let token_value = self.retrieve_symbol();
 
-        if !valid_symbols.contains(&token_value.as_str()) {
+        if !UNARY_OP_SYMBOLS.contains(&token_value.as_str()) {
             panic!(format!(
                 "Invalid unary op. Expected {:?}, but found {}",
-                valid_symbols, token_value
+                UNARY_OP_SYMBOLS, token_value
             ));
         }
 
