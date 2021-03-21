@@ -144,22 +144,16 @@ fn build_statement_list(tokenizer: &mut Tokenizer) -> Vec<Box<dyn Statement>> {
     Vec::new()
 }
 
-trait Statement {
-
-}
+trait Statement {}
 
 struct StatementReturn {
-    expression: Option<Expression>
+    expression: Option<Expression>,
 }
 
-impl Statement for StatementReturn {
-
-}
+impl Statement for StatementReturn {}
 
 impl StatementReturn {
-    pub fn build(tokenizer: &mut Tokenizer) {
-
-    }
+    pub fn build(tokenizer: &mut Tokenizer) {}
 }
 
 struct Expression {
@@ -203,7 +197,6 @@ impl Expression {
     }
 }
 
-
 struct SubroutineCall {
     class_name: Option<String>,
     value: String,
@@ -222,7 +215,7 @@ impl SubroutineCall {
             return SubroutineCall {
                 class_name: None,
                 value,
-                expressions
+                expressions,
             };
         }
 
@@ -237,7 +230,7 @@ impl SubroutineCall {
             return SubroutineCall {
                 class_name: Some(value),
                 value: var_name,
-                expressions
+                expressions,
             };
         }
 
@@ -249,7 +242,10 @@ impl SubroutineCall {
 
         let next_token = tokenizer.peek_next();
 
-        if next_token.is_none() || next_token.unwrap().get_value() == ")" || next_token.unwrap().get_value() == "]" {
+        if next_token.is_none()
+            || next_token.unwrap().get_value() == ")"
+            || next_token.unwrap().get_value() == "]"
+        {
             return result;
         }
 
@@ -266,7 +262,7 @@ impl SubroutineCall {
 
         result
     }
-    
+
     pub fn get_value(&self) -> &String {
         &self.value
     }
@@ -328,11 +324,7 @@ impl Term {
         }
     }
 
-    fn new_with_expression(
-        term_type: TermType,
-        value: String,
-        expression: Expression,
-    ) -> Term {
+    fn new_with_expression(term_type: TermType, value: String, expression: Expression) -> Term {
         Term {
             term_type,
             value: String::from(value),
@@ -368,18 +360,14 @@ impl Term {
             let expression = Expression::build(tokenizer);
             tokenizer.consume("]");
 
-            return Term::new_with_expression(
-                TermType::ArrayCall,
-                String::from(value),
-                expression,
-            );
+            return Term::new_with_expression(TermType::ArrayCall, String::from(value), expression);
         }
 
-        if next_token.get_type() == TokenType::Symbol && [".", "("].contains(&next_token.get_value().as_str()) {
+        if next_token.get_type() == TokenType::Symbol
+            && [".", "("].contains(&next_token.get_value().as_str())
+        {
             let subroutine = SubroutineCall::build_from_value(String::from(value), tokenizer);
-            return Term::new_with_subroutine(
-                subroutine
-            );
+            return Term::new_with_subroutine(subroutine);
         }
 
         Term::new(TermType::VarName, String::from(value))
