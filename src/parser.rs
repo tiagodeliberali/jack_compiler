@@ -1,8 +1,8 @@
-use crate::tokenizer::{UNARY_OP_SYMBOLS, TokenType, Tokenizer};
+use crate::tokenizer::{self, TokenType, Tokenizer, UNARY_OP_SYMBOLS};
 
 pub struct ClassNode {
     identifier: String,
-    class_var_dec: Vec<ClassVarDec>,
+    class_var_dec: Vec<VarDec>,
     subroutine_dec: Vec<SubroutineDec>,
 }
 
@@ -13,7 +13,7 @@ impl ClassNode {
         tokenizer.consume("class");
         let identifier = tokenizer.retrieve_identifier();
         tokenizer.consume("{");
-        let class_var_dec = ClassVarDec::build(tokenizer);
+        let class_var_dec = VarDec::build_class(tokenizer);
         let subroutine_dec = SubroutineDec::build(tokenizer);
         tokenizer.consume("}");
 
@@ -28,7 +28,7 @@ impl ClassNode {
         self.identifier.clone()
     }
 
-    pub fn get_class_var_dec(&self) -> &Vec<ClassVarDec> {
+    pub fn get_class_var_dec(&self) -> &Vec<VarDec> {
         &self.class_var_dec
     }
 
@@ -36,20 +36,21 @@ impl ClassNode {
         &self.subroutine_dec
     }
 }
-struct ClassVarDec {
+
+struct VarDec {
     descriptor: String,
     var_type: String,
     names: Vec<String>,
 }
 
-impl ClassVarDec {
-    pub fn build(tokenizer: &mut Tokenizer) -> Vec<ClassVarDec> {
+impl VarDec {
+    pub fn build_class(tokenizer: &mut Tokenizer) -> Vec<VarDec> {
         let mut result = Vec::new();
 
         while let Some(current_token) = tokenizer.peek_next() {
             match current_token.get_value().as_str() {
-                "field" => result.push(ClassVarDec::build_field(tokenizer, "field")),
-                "static" => result.push(ClassVarDec::build_field(tokenizer, "static")),
+                "field" => result.push(VarDec::build_field(tokenizer, "field")),
+                "static" => result.push(VarDec::build_field(tokenizer, "static")),
                 _ => break,
             }
         }
@@ -57,7 +58,20 @@ impl ClassVarDec {
         result
     }
 
-    fn build_field(tokenizer: &mut Tokenizer, descriptor: &str) -> ClassVarDec {
+    pub fn build_var(tokenizer: &mut Tokenizer) -> Vec<VarDec> {
+        let mut result = Vec::new();
+
+        while let Some(current_token) = tokenizer.peek_next() {
+            match current_token.get_value().as_str() {
+                "var" => result.push(VarDec::build_field(tokenizer, "var")),
+                _ => break,
+            }
+        }
+
+        result
+    }
+
+    fn build_field(tokenizer: &mut Tokenizer, descriptor: &str) -> VarDec {
         let mut names: Vec<String> = Vec::new();
 
         tokenizer.consume(descriptor);
@@ -73,7 +87,7 @@ impl ClassVarDec {
             }
         }
 
-        ClassVarDec {
+        VarDec {
             descriptor: String::from(descriptor),
             var_type,
             names,
@@ -98,11 +112,53 @@ struct SubroutineDec {
     routine_type: String,
     name: String,
     parameters: Vec<String>,
+    var_dec: Vec<VarDec>,
+    statements: Vec<Box<dyn Statement>>,
 }
 
 impl SubroutineDec {
     pub fn build(tokenizer: &mut Tokenizer) -> Vec<SubroutineDec> {
         Vec::new()
+    }
+
+    // pub fn build(tokenizer: &mut Tokenizer) -> Vec<SubroutineDec> {
+    //     let result = Vec::new();
+
+    //     while let Some(next_token) = tokenizer.peek_next() {
+    //         if next_token.get_value() == "}" {
+    //             break;
+    //         }
+
+    //         result.push(SubroutineDec::build_subroutine(tokenizer));
+    //     }
+
+    //     result
+    // }
+
+    // fn build_subroutine(tokenizer: &mut Tokenizer) -> SubroutineDec {
+
+    // }
+}
+
+fn build_statement_list(tokenizer: &mut Tokenizer) -> Vec<Box<dyn Statement>> {
+    Vec::new()
+}
+
+trait Statement {
+
+}
+
+struct StatementReturn {
+    expression: Option<Expression>
+}
+
+impl Statement for StatementReturn {
+
+}
+
+impl StatementReturn {
+    pub fn build(tokenizer: &mut Tokenizer) {
+
     }
 }
 
@@ -147,122 +203,27 @@ impl Expression {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Copy)]
-enum TermType {
-    Integer,
-    String,
-    Keyword,
-    VarName,
-    ArrayCall,
-    SubroutineCall,
-    Expression,
-    UnaryTerm,
-}
 
-struct Term {
-    term_type: TermType,
-    value: String,
+struct SubroutineCall {
     class_name: Option<String>,
+    value: String,
     expressions: Vec<Expression>,
-    unary_op: Option<String>,
-    another_term: Box<Option<Term>>,
 }
 
-impl Term {
-    pub fn build(tokenizer: &mut Tokenizer) -> Term {
-        let token = tokenizer.get_next().unwrap();
-
-        match token.get_type() {
-            TokenType::Integer => Term::new(TermType::Integer, token.get_value()),
-            TokenType::String => Term::new(TermType::String, token.get_value()),
-            TokenType::Keyword => Term::new(TermType::Keyword, token.get_value()),
-            TokenType::Identifier => Term::build_identifier(token.get_value().as_str(), tokenizer),
-            TokenType::Symbol => Term::build_symbol(token.get_value().as_str(), tokenizer),
-            _ => panic!(format!(
-                "Invalid type on expression build: {:?}",
-                token.get_type()
-            )),
-        }
-    }
-
-    fn new(term_type: TermType, value: String) -> Term {
-        Term {
-            term_type,
-            value: String::from(value),
-            class_name: None,
-            expressions: Vec::new(),
-            unary_op: None,
-            another_term: Box::new(Option::None),
-        }
-    }
-
-    fn new_with_expression(
-        term_type: TermType,
-        value: String,
-        expressions: Vec<Expression>,
-    ) -> Term {
-        Term {
-            term_type,
-            value: String::from(value),
-            class_name: None,
-            expressions,
-            unary_op: None,
-            another_term: Box::new(Option::None),
-        }
-    }
-
-    fn new_with_class(
-        term_type: TermType,
-        value: String,
-        expressions: Vec<Expression>,
-        class_name: String,
-    ) -> Term {
-        Term {
-            term_type,
-            value: String::from(value),
-            class_name: Some(class_name),
-            expressions,
-            unary_op: None,
-            another_term: Box::new(Option::None),
-        }
-    }
-
-    fn build_identifier(value: &str, tokenizer: &mut Tokenizer) -> Term {
-        let next_token = tokenizer.peek_next();
-
-        if next_token.is_none() {
-            return Term::new(TermType::VarName, String::from(value));
-        }
-
-        let next_token = next_token.unwrap();
-
-        if next_token.get_type() == TokenType::Symbol && next_token.get_value() == "[" {
-            tokenizer.consume("[");
-            let expressions = Term::build_expression_list(tokenizer);
-
-            if expressions.len() > 1 {
-                panic!("Invalid expression list inside an array call");
-            }
-
-            tokenizer.consume("]");
-
-            return Term::new_with_expression(
-                TermType::ArrayCall,
-                String::from(value),
-                expressions,
-            );
-        }
+impl SubroutineCall {
+    pub fn build_from_value(value: String, tokenizer: &mut Tokenizer) -> SubroutineCall {
+        let next_token = tokenizer.peek_next().unwrap();
 
         if next_token.get_type() == TokenType::Symbol && next_token.get_value() == "(" {
             tokenizer.consume("(");
-            let expression = Term::build_expression_list(tokenizer);
+            let expressions = SubroutineCall::build_expression_list(tokenizer);
             tokenizer.consume(")");
 
-            return Term::new_with_expression(
-                TermType::SubroutineCall,
-                String::from(value),
-                expression,
-            );
+            return SubroutineCall {
+                class_name: None,
+                value,
+                expressions
+            };
         }
 
         if next_token.get_type() == TokenType::Symbol && next_token.get_value() == "." {
@@ -270,18 +231,17 @@ impl Term {
             let var_name = tokenizer.retrieve_identifier();
 
             tokenizer.consume("(");
-            let expressions = Term::build_expression_list(tokenizer);
+            let expressions = SubroutineCall::build_expression_list(tokenizer);
             tokenizer.consume(")");
 
-            return Term::new_with_class(
-                TermType::SubroutineCall,
-                var_name,
-                expressions,
-                String::from(value),
-            );
+            return SubroutineCall {
+                class_name: Some(value),
+                value: var_name,
+                expressions
+            };
         }
 
-        Term::new(TermType::VarName, String::from(value))
+        panic!("Invalid next token on building subroutine call");
     }
 
     fn build_expression_list(tokenizer: &mut Tokenizer) -> Vec<Expression> {
@@ -306,20 +266,134 @@ impl Term {
 
         result
     }
+    
+    pub fn get_value(&self) -> &String {
+        &self.value
+    }
+
+    pub fn get_class_name(&self) -> &Option<String> {
+        &self.class_name
+    }
+
+    pub fn get_expressions(&self) -> &Vec<Expression> {
+        &self.expressions
+    }
+}
+
+#[derive(PartialEq, Debug, Clone, Copy)]
+enum TermType {
+    Integer,
+    String,
+    Keyword,
+    VarName,
+    ArrayCall,
+    SubroutineCall,
+    Expression,
+}
+
+struct Term {
+    term_type: TermType,
+    value: String,
+    expression: Box<Option<Expression>>,
+    unary_op: Option<String>,
+    another_term: Box<Option<Term>>,
+    subroutine_call: Option<SubroutineCall>,
+}
+
+impl Term {
+    pub fn build(tokenizer: &mut Tokenizer) -> Term {
+        let token = tokenizer.get_next().unwrap();
+
+        match token.get_type() {
+            TokenType::Integer => Term::new(TermType::Integer, token.get_value()),
+            TokenType::String => Term::new(TermType::String, token.get_value()),
+            TokenType::Keyword => Term::new(TermType::Keyword, token.get_value()),
+            TokenType::Identifier => Term::build_identifier(token.get_value().as_str(), tokenizer),
+            TokenType::Symbol => Term::build_symbol(token.get_value().as_str(), tokenizer),
+            _ => panic!(format!(
+                "Invalid type on expression build: {:?}",
+                token.get_type()
+            )),
+        }
+    }
+
+    fn new(term_type: TermType, value: String) -> Term {
+        Term {
+            term_type,
+            value: String::from(value),
+            expression: Box::new(Option::None),
+            unary_op: None,
+            another_term: Box::new(Option::None),
+            subroutine_call: None,
+        }
+    }
+
+    fn new_with_expression(
+        term_type: TermType,
+        value: String,
+        expression: Expression,
+    ) -> Term {
+        Term {
+            term_type,
+            value: String::from(value),
+            expression: Box::new(Some(expression)),
+            unary_op: None,
+            another_term: Box::new(Option::None),
+            subroutine_call: None,
+        }
+    }
+
+    fn new_with_subroutine(subroutine_call: SubroutineCall) -> Term {
+        Term {
+            term_type: TermType::SubroutineCall,
+            value: String::new(),
+            expression: Box::new(Option::None),
+            unary_op: None,
+            another_term: Box::new(Option::None),
+            subroutine_call: Some(subroutine_call),
+        }
+    }
+
+    fn build_identifier(value: &str, tokenizer: &mut Tokenizer) -> Term {
+        let next_token = tokenizer.peek_next();
+
+        if next_token.is_none() {
+            return Term::new(TermType::VarName, String::from(value));
+        }
+
+        let next_token = next_token.unwrap();
+
+        if next_token.get_type() == TokenType::Symbol && next_token.get_value() == "[" {
+            tokenizer.consume("[");
+            let expression = Expression::build(tokenizer);
+            tokenizer.consume("]");
+
+            return Term::new_with_expression(
+                TermType::ArrayCall,
+                String::from(value),
+                expression,
+            );
+        }
+
+        if next_token.get_type() == TokenType::Symbol && [".", "("].contains(&next_token.get_value().as_str()) {
+            let subroutine = SubroutineCall::build_from_value(String::from(value), tokenizer);
+            return Term::new_with_subroutine(
+                subroutine
+            );
+        }
+
+        Term::new(TermType::VarName, String::from(value))
+    }
 
     fn build_symbol(value: &str, tokenizer: &mut Tokenizer) -> Term {
         if value == "(" {
-            let expressions = Term::build_expression_list(tokenizer);
+            let expression = Expression::build(tokenizer);
             tokenizer.consume(")");
-
-            if expressions.len() > 1 {
-                panic!("Invalid expression list inside an expression call");
-            }
 
             return Term::new_with_expression(
                 TermType::Expression,
                 String::from(value),
-                expressions,
+                expression,
             );
         }
 
@@ -346,12 +420,8 @@ impl Term {
         self.value.as_str()
     }
 
-    pub fn get_expressions(&self) -> &Vec<Expression> {
-        &self.expressions
-    }
-
-    pub fn get_class_name(&self) -> &Option<String> {
-        &self.class_name
+    pub fn get_expression(&self) -> &Option<Expression> {
+        &self.expression
     }
 
     pub fn get_unary_op(&self) -> &Option<String> {
@@ -360,6 +430,10 @@ impl Term {
 
     pub fn set_unary_op(&mut self, value: String) {
         self.unary_op.replace(value);
+    }
+
+    pub fn get_subroutine(&self) -> &Option<SubroutineCall> {
+        &self.subroutine_call
     }
 }
 
@@ -382,7 +456,7 @@ mod tests {
     fn build_class_var_dec_list() {
         let mut tokenizer = Tokenizer::new("field int x, y; static String name;");
 
-        let result = ClassVarDec::build(&mut tokenizer);
+        let result = VarDec::build_class(&mut tokenizer);
 
         assert_eq!(result.len(), 2);
 
@@ -404,7 +478,7 @@ mod tests {
     fn build_class_var_dec_list_without_data() {
         let mut tokenizer = Tokenizer::new("method void test(x) {}");
 
-        let result = ClassVarDec::build(&mut tokenizer);
+        let result = VarDec::build_class(&mut tokenizer);
 
         assert_eq!(result.len(), 0);
     }
@@ -458,7 +532,8 @@ mod tests {
         assert_eq!(result.get_type(), &TermType::ArrayCall);
         assert_eq!(result.get_value(), "position");
 
-        assert_eq!(result.get_expressions().len(), 1);
+        let expression = result.get_expression().as_ref().unwrap();
+        assert_eq!(expression.get_term().get_value(), "10");
     }
 
     #[test]
@@ -468,14 +543,15 @@ mod tests {
         let result = Term::build(&mut tokenizer);
 
         assert_eq!(result.get_type(), &TermType::SubroutineCall);
-        assert_eq!(result.get_value(), "print");
+        assert_eq!(result.get_value(), "");
 
-        assert_eq!(result.get_expressions().len(), 2);
+        let subroutine = result.get_subroutine().as_ref().unwrap();
+        assert_eq!(subroutine.get_value(), "print");
 
-        let expression = result.get_expressions().get(0).unwrap();
+        let expression = subroutine.get_expressions().get(0).unwrap();
         assert_eq!(expression.get_term().get_value(), "my name");
 
-        let expression = result.get_expressions().get(1).unwrap();
+        let expression = subroutine.get_expressions().get(1).unwrap();
         assert_eq!(expression.get_term().get_value(), "10");
     }
 
@@ -486,12 +562,15 @@ mod tests {
         let result = Term::build(&mut tokenizer);
 
         assert_eq!(result.get_type(), &TermType::SubroutineCall);
-        assert_eq!(result.get_value(), "write");
+        assert_eq!(result.get_value(), "");
 
-        let class_name = result.get_class_name().clone();
+        let subroutine = result.get_subroutine().as_ref().unwrap();
+        assert_eq!(subroutine.get_value(), "write");
+
+        let class_name = subroutine.get_class_name().clone();
         assert_eq!(class_name.unwrap(), "Console");
 
-        assert_eq!(result.get_expressions().len(), 0);
+        assert_eq!(subroutine.get_expressions().len(), 0);
     }
 
     #[test]
@@ -502,9 +581,7 @@ mod tests {
 
         assert_eq!(result.get_type(), &TermType::Expression);
 
-        assert_eq!(result.get_expressions().len(), 1);
-
-        let expression = result.get_expressions().get(0).unwrap();
+        let expression = result.get_expression().as_ref().unwrap();
 
         assert_eq!(expression.get_term().get_value(), "x");
 
@@ -524,8 +601,6 @@ mod tests {
         assert_eq!(result.get_type(), &TermType::VarName);
         assert_eq!(result.get_value(), "x");
         assert_eq!(result.get_unary_op().as_ref().unwrap(), "-");
-
-        assert_eq!(result.get_expressions().len(), 0);
     }
 
     // #[test]
