@@ -1,4 +1,4 @@
-use crate::tokenizer::{self, TokenType, Tokenizer, UNARY_OP_SYMBOLS};
+use crate::tokenizer::{TokenType, Tokenizer, UNARY_OP_SYMBOLS};
 
 pub struct ClassNode {
     identifier: String,
@@ -113,7 +113,7 @@ struct SubroutineDec {
     name: String,
     parameters: Vec<String>,
     var_dec: Vec<VarDec>,
-    statements: Vec<Box<dyn Statement>>,
+    statements: Vec<Box<Statement>>,
 }
 
 impl SubroutineDec {
@@ -140,20 +140,89 @@ impl SubroutineDec {
     // }
 }
 
-fn build_statement_list(tokenizer: &mut Tokenizer) -> Vec<Box<dyn Statement>> {
-    Vec::new()
+#[derive(PartialEq, Debug, Clone, Copy)]
+enum StatementType {
+    Return,
+}
+struct Statement {
+    statement_type: StatementType,
+    statement_return: Option<StatementReturn>,
 }
 
-trait Statement {}
+impl Statement {
+    pub fn build_list(tokenizer: &mut Tokenizer) -> Vec<Statement> {
+        let mut result = Vec::new();
+
+        while let Some(next_token) = tokenizer.peek_next() {
+            if next_token.get_value() == "}" {
+                break;
+            }
+
+            result.push(Statement::build(tokenizer));
+        }
+
+        result
+    }
+
+    pub fn build(tokenizer: &mut Tokenizer) -> Statement {
+        let next_token = tokenizer.peek_next().unwrap();
+
+        if next_token.get_type() != TokenType::Keyword {
+            panic!(format!(
+                "Invalid token type on build of statement: {:?} ({})",
+                next_token.get_type(),
+                next_token.get_value()
+            ));
+        }
+
+        match next_token.get_value().as_str() {
+            "return" => Statement::build_return(tokenizer),
+            value => panic!(format!("Invalid statement value: {}", value)),
+        }
+    }
+
+    fn build_return(tokenizer: &mut Tokenizer) -> Statement {
+        Statement {
+            statement_type: StatementType::Return,
+            statement_return: Some(StatementReturn::build(tokenizer)),
+        }
+    }
+
+    pub fn get_type(&self) -> &StatementType {
+        &self.statement_type
+    }
+
+    pub fn get_return(&self) -> &Option<StatementReturn> {
+        &self.statement_return
+    }
+}
 
 struct StatementReturn {
     expression: Option<Expression>,
 }
 
-impl Statement for StatementReturn {}
-
 impl StatementReturn {
-    pub fn build(tokenizer: &mut Tokenizer) {}
+    pub fn build(tokenizer: &mut Tokenizer) -> StatementReturn {
+        tokenizer.consume("return");
+
+        let next_token = tokenizer.peek_next().unwrap();
+
+        if next_token.get_value() == ";" {
+            tokenizer.consume(";");
+            return StatementReturn { expression: None };
+        }
+
+        let expression = Expression::build(tokenizer);
+        tokenizer.consume(";");
+
+        StatementReturn {
+            expression: Some(expression),
+        }
+    }
+
+    pub fn get_expression(&self) -> &Option<Expression> {
+        &self.expression
+    }
 }
 
 struct Expression {
@@ -589,6 +658,49 @@ mod tests {
         assert_eq!(result.get_type(), &TermType::VarName);
         assert_eq!(result.get_value(), "x");
         assert_eq!(result.get_unary_op().as_ref().unwrap(), "-");
+    }
+
+    #[test]
+    fn build_statement_list_return_expression() {
+        let mut tokenizer = Tokenizer::new("return name;");
+
+        let statements = Statement::build_list(&mut tokenizer);
+
+        assert_eq!(statements.len(), 1);
+
+        let return_statement = statements.get(0).unwrap();
+
+        assert_eq!(return_statement.get_type(), &StatementType::Return);
+
+        let expression = return_statement
+            .get_return()
+            .as_ref()
+            .unwrap()
+            .get_expression()
+            .as_ref()
+            .unwrap();
+        assert_eq!(expression.get_term().get_value(), "name");
+    }
+
+    #[test]
+    fn build_statement_list_return() {
+        let mut tokenizer = Tokenizer::new("return;");
+
+        let statements = Statement::build_list(&mut tokenizer);
+
+        assert_eq!(statements.len(), 1);
+
+        let return_statement = statements.get(0).unwrap();
+
+        assert_eq!(return_statement.get_type(), &StatementType::Return);
+
+        let expression = return_statement
+            .get_return()
+            .as_ref()
+            .unwrap()
+            .get_expression()
+            .as_ref();
+        assert!(expression.is_none());
     }
 
     // #[test]
