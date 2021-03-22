@@ -143,10 +143,12 @@ impl SubroutineDec {
 #[derive(PartialEq, Debug, Clone, Copy)]
 enum StatementType {
     Return,
+    Do,
 }
 struct Statement {
     statement_type: StatementType,
     statement_return: Option<StatementReturn>,
+    statement_do: Option<StatementDo>,
 }
 
 impl Statement {
@@ -177,6 +179,7 @@ impl Statement {
 
         match next_token.get_value().as_str() {
             "return" => Statement::build_return(tokenizer),
+            "do" => Statement::build_do(tokenizer),
             value => panic!(format!("Invalid statement value: {}", value)),
         }
     }
@@ -185,6 +188,15 @@ impl Statement {
         Statement {
             statement_type: StatementType::Return,
             statement_return: Some(StatementReturn::build(tokenizer)),
+            statement_do: None,
+        }
+    }
+
+    fn build_do(tokenizer: &mut Tokenizer) -> Statement {
+        Statement {
+            statement_type: StatementType::Do,
+            statement_return: None,
+            statement_do: Some(StatementDo::build(tokenizer)),
         }
     }
 
@@ -194,6 +206,10 @@ impl Statement {
 
     pub fn get_return(&self) -> &Option<StatementReturn> {
         &self.statement_return
+    }
+
+    pub fn get_do(&self) -> &Option<StatementDo> {
+        &self.statement_do
     }
 }
 
@@ -222,6 +238,24 @@ impl StatementReturn {
 
     pub fn get_expression(&self) -> &Option<Expression> {
         &self.expression
+    }
+}
+
+struct StatementDo {
+    subroutine: SubroutineCall,
+}
+
+impl StatementDo {
+    pub fn build(tokenizer: &mut Tokenizer) -> StatementDo {
+        tokenizer.consume("do");
+        let subroutine = SubroutineCall::build(tokenizer);
+        tokenizer.consume(";");
+
+        StatementDo { subroutine }
+    }
+
+    pub fn get_subroutine(&self) -> &SubroutineCall {
+        &self.subroutine
     }
 }
 
@@ -273,6 +307,11 @@ struct SubroutineCall {
 }
 
 impl SubroutineCall {
+    pub fn build(tokenizer: &mut Tokenizer) -> SubroutineCall {
+        let value = tokenizer.retrieve_identifier();
+        SubroutineCall::build_from_value(value, tokenizer)
+    }
+
     pub fn build_from_value(value: String, tokenizer: &mut Tokenizer) -> SubroutineCall {
         let next_token = tokenizer.peek_next().unwrap();
 
@@ -701,6 +740,23 @@ mod tests {
             .get_expression()
             .as_ref();
         assert!(expression.is_none());
+    }
+
+    #[test]
+    fn build_statement_list_do() {
+        let mut tokenizer = Tokenizer::new("do Console.print(test);");
+
+        let statements = Statement::build_list(&mut tokenizer);
+
+        assert_eq!(statements.len(), 1);
+
+        let do_statement = statements.get(0).unwrap();
+
+        assert_eq!(do_statement.get_type(), &StatementType::Do);
+
+        let subroutine = do_statement.get_do().as_ref().unwrap().get_subroutine();
+        assert_eq!(subroutine.get_class_name().as_ref().unwrap(), "Console");
+        assert_eq!(subroutine.get_value(), "print");
     }
 
     // #[test]
