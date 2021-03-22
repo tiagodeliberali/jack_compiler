@@ -133,7 +133,7 @@ impl Tokenizer {
         token_value
     }
 
-    fn retrieve_any(&mut self, expected_type: Vec<TokenType>) -> &TokenItem {
+    pub fn retrieve_any(&mut self, expected_type: Vec<TokenType>) -> &TokenItem {
         let token = self.get_next().unwrap();
 
         if !expected_type.contains(&token.get_type()) {

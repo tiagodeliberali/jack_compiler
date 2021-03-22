@@ -37,6 +37,31 @@ impl ClassNode {
     }
 }
 
+struct Parameter {
+    parameter_type: String,
+    name: String,
+}
+
+impl Parameter {
+    fn build(tokenizer: &mut Tokenizer) -> Parameter {
+        let parameter_type = tokenizer.retrieve_type();
+        let name = tokenizer.retrieve_identifier();
+
+        Parameter {
+            parameter_type,
+            name,
+        }
+    }
+
+    pub fn get_type(&self) -> &String {
+        &self.parameter_type
+    }
+
+    pub fn get_name(&self) -> &String {
+        &self.name
+    }
+}
+
 struct VarDec {
     descriptor: String,
     var_type: String,
@@ -111,33 +136,91 @@ struct SubroutineDec {
     descriptor: String,
     routine_type: String,
     name: String,
-    parameters: Vec<String>,
+    parameters: Vec<Parameter>,
     var_dec: Vec<VarDec>,
-    statements: Vec<Box<Statement>>,
+    statements: Vec<Statement>,
 }
 
 impl SubroutineDec {
     pub fn build(tokenizer: &mut Tokenizer) -> Vec<SubroutineDec> {
-        Vec::new()
+        let mut result = Vec::new();
+
+        while let Some(next_token) = tokenizer.peek_next() {
+            if next_token.get_value() == "}" {
+                break;
+            }
+
+            result.push(SubroutineDec::build_subroutine(tokenizer));
+        }
+
+        result
     }
 
-    // pub fn build(tokenizer: &mut Tokenizer) -> Vec<SubroutineDec> {
-    //     let result = Vec::new();
+    fn build_subroutine(tokenizer: &mut Tokenizer) -> SubroutineDec {
+        let descriptor = tokenizer.retrieve_keyword();
+        let routine_type = tokenizer
+            .retrieve_any(Vec::from([TokenType::Keyword, TokenType::Identifier]))
+            .get_value();
+        let name = tokenizer.retrieve_identifier();
+        tokenizer.consume("(");
+        let parameters = SubroutineDec::build_parameters(tokenizer);
+        tokenizer.consume(")");
+        tokenizer.consume("{");
+        let var_dec = VarDec::build_var(tokenizer);
+        let statements = Statement::build_list(tokenizer);
+        tokenizer.consume("}");
 
-    //     while let Some(next_token) = tokenizer.peek_next() {
-    //         if next_token.get_value() == "}" {
-    //             break;
-    //         }
+        SubroutineDec {
+            descriptor,
+            routine_type,
+            name,
+            parameters,
+            var_dec,
+            statements,
+        }
+    }
 
-    //         result.push(SubroutineDec::build_subroutine(tokenizer));
-    //     }
+    fn build_parameters(tokenizer: &mut Tokenizer) -> Vec<Parameter> {
+        let mut result = Vec::new();
 
-    //     result
-    // }
+        while let Some(next_token) = tokenizer.peek_next() {
+            if next_token.get_value() == ")" {
+                break;
+            }
 
-    // fn build_subroutine(tokenizer: &mut Tokenizer) -> SubroutineDec {
+            if next_token.get_value() == "," {
+                tokenizer.consume(",");
+            }
 
-    // }
+            result.push(Parameter::build(tokenizer));
+        }
+
+        result
+    }
+
+    pub fn get_descriptor(&self) -> &String {
+        &self.descriptor
+    }
+
+    pub fn get_type(&self) -> &String {
+        &self.routine_type
+    }
+
+    pub fn get_name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn get_parameters(&self) -> &Vec<Parameter> {
+        &self.parameters
+    }
+
+    pub fn get_var_dec(&self) -> &Vec<VarDec> {
+        &self.var_dec
+    }
+
+    pub fn get_statements(&self) -> &Vec<Statement> {
+        &self.statements
+    }
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -1065,36 +1148,42 @@ mod tests {
         assert_eq!(expression.get_term().get_value(), "test");
     }
 
-    // #[test]
-    // fn build_subroutine_dec_list_void_method() {
-    //     let mut tokenizer = Tokenizer::new("method void test(int x, String name) {var int y; let y = x + 1; do print(y, name) return;}");
+    #[test]
+    fn build_subroutine_dec_list_string_function() {
+        let mut tokenizer = Tokenizer::new("function String print() {}");
 
-    //     let result = SubroutineDec::build(&mut tokenizer);
+        let result = SubroutineDec::build(&mut tokenizer);
 
-    //     assert_eq!(result.len(), 1);
-    // }
+        assert_eq!(result.len(), 1);
 
-    // #[test]
-    // fn build_subroutine_dec_list_multiple_items() {
-    //     let mut tokenizer = Tokenizer::new("method void test() {} function String print() {}");
+        let subroutine = result.get(0).unwrap();
+        assert_eq!(subroutine.get_descriptor(), "function");
+        assert_eq!(subroutine.get_type(), "String");
+        assert_eq!(subroutine.get_name(), "print");
+        assert_eq!(subroutine.get_parameters().len(), 0);
+    }
 
-    //     let result = SubroutineDec::build(&mut tokenizer);
+    #[test]
+    fn build_subroutine_dec_list_multiple_items() {
+        let mut tokenizer = Tokenizer::new("method void test() {} function String print() {}");
 
-    //     assert_eq!(result.len(), 2);
-    // }
+        let result = SubroutineDec::build(&mut tokenizer);
 
-    // #[test]
-    // fn build_subroutine_dec_list_string_function() {
-    //     let mut tokenizer = Tokenizer::new("function String print() {}");
+        assert_eq!(result.len(), 2);
+    }
 
-    //     let result = SubroutineDec::build(&mut tokenizer);
+    #[test]
+    fn build_subroutine_dec_list_void_method() {
+        let mut tokenizer = Tokenizer::new("method void test(int x, String name) {var int y; let y = x + 1; do print(y, name); return;}");
 
-    //     assert_eq!(result.len(), 1);
+        let result = SubroutineDec::build(&mut tokenizer);
 
-    //     let var = result.get(0).unwrap();
-    //     // assert_eq!(var.get_descriptor(), "function");
-    //     // assert_eq!(var.get_type(), "String");
-    //     // assert_eq!(var.get_name(), "print");
-    //     // assert_eq!(var.get_parameters().len(), 0);
-    // }
+        assert_eq!(result.len(), 1);
+
+        let subroutine = result.get(0).unwrap();
+        assert_eq!(subroutine.get_descriptor(), "method");
+        assert_eq!(subroutine.get_type(), "void");
+        assert_eq!(subroutine.get_name(), "test");
+        assert_eq!(subroutine.get_parameters().len(), 2);
+    }
 }
