@@ -144,11 +144,13 @@ impl SubroutineDec {
 enum StatementType {
     Return,
     Do,
+    While,
 }
 struct Statement {
     statement_type: StatementType,
     statement_return: Option<StatementReturn>,
     statement_do: Option<StatementDo>,
+    statement_while: Option<StatementWhile>,
 }
 
 impl Statement {
@@ -180,6 +182,7 @@ impl Statement {
         match next_token.get_value().as_str() {
             "return" => Statement::build_return(tokenizer),
             "do" => Statement::build_do(tokenizer),
+            "while" => Statement::build_while(tokenizer),
             value => panic!(format!("Invalid statement value: {}", value)),
         }
     }
@@ -189,6 +192,7 @@ impl Statement {
             statement_type: StatementType::Return,
             statement_return: Some(StatementReturn::build(tokenizer)),
             statement_do: None,
+            statement_while: None,
         }
     }
 
@@ -197,6 +201,16 @@ impl Statement {
             statement_type: StatementType::Do,
             statement_return: None,
             statement_do: Some(StatementDo::build(tokenizer)),
+            statement_while: None,
+        }
+    }
+
+    fn build_while(tokenizer: &mut Tokenizer) -> Statement {
+        Statement {
+            statement_type: StatementType::While,
+            statement_return: None,
+            statement_do: None,
+            statement_while: Some(StatementWhile::build(tokenizer)),
         }
     }
 
@@ -210,6 +224,10 @@ impl Statement {
 
     pub fn get_do(&self) -> &Option<StatementDo> {
         &self.statement_do
+    }
+
+    pub fn get_while(&self) -> &Option<StatementWhile> {
+        &self.statement_while
     }
 }
 
@@ -256,6 +274,33 @@ impl StatementDo {
 
     pub fn get_subroutine(&self) -> &SubroutineCall {
         &self.subroutine
+    }
+}
+
+struct StatementWhile {
+    expression: Expression,
+    statements: Vec<Statement>
+}
+
+impl StatementWhile {
+    pub fn build(tokenizer: &mut Tokenizer) -> StatementWhile {
+        tokenizer.consume("while");
+        tokenizer.consume("(");
+        let expression = Expression::build(tokenizer);
+        tokenizer.consume(")");
+        tokenizer.consume("{");
+        let statements = Statement::build_list(tokenizer);
+        tokenizer.consume("}");
+
+        StatementWhile { expression, statements }
+    }
+
+    pub fn get_expression(&self) -> &Expression {
+        &self.expression
+    }
+
+    pub fn get_statements(&self) -> &Vec<Statement> {
+        &self.statements
     }
 }
 
@@ -757,6 +802,27 @@ mod tests {
         let subroutine = do_statement.get_do().as_ref().unwrap().get_subroutine();
         assert_eq!(subroutine.get_class_name().as_ref().unwrap(), "Console");
         assert_eq!(subroutine.get_value(), "print");
+    }
+
+    #[test]
+    fn build_statement_list_while() {
+        let mut tokenizer = Tokenizer::new("while (x < 5) { do Console.print(test); }");
+
+        let statements = Statement::build_list(&mut tokenizer);
+
+        assert_eq!(statements.len(), 1);
+
+        let statement = statements.get(0).unwrap();
+
+        assert_eq!(statement.get_type(), &StatementType::While);
+
+        let while_statement = statement.get_while().as_ref().unwrap();
+
+        let expression = while_statement.get_expression();
+        assert_eq!(expression.get_term().get_value(), "x");
+
+        let statements = while_statement.get_statements();
+        assert_eq!(statements.len(), 1);        
     }
 
     // #[test]
