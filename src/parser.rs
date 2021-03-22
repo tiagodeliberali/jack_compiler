@@ -145,12 +145,14 @@ enum StatementType {
     Return,
     Do,
     While,
+    If,
 }
 struct Statement {
     statement_type: StatementType,
     statement_return: Option<StatementReturn>,
     statement_do: Option<StatementDo>,
     statement_while: Option<StatementWhile>,
+    statement_if: Option<StatementIf>,
 }
 
 impl Statement {
@@ -183,6 +185,7 @@ impl Statement {
             "return" => Statement::build_return(tokenizer),
             "do" => Statement::build_do(tokenizer),
             "while" => Statement::build_while(tokenizer),
+            "if" => Statement::build_if(tokenizer),
             value => panic!(format!("Invalid statement value: {}", value)),
         }
     }
@@ -193,6 +196,7 @@ impl Statement {
             statement_return: Some(StatementReturn::build(tokenizer)),
             statement_do: None,
             statement_while: None,
+            statement_if: None,
         }
     }
 
@@ -202,6 +206,7 @@ impl Statement {
             statement_return: None,
             statement_do: Some(StatementDo::build(tokenizer)),
             statement_while: None,
+            statement_if: None,
         }
     }
 
@@ -211,6 +216,17 @@ impl Statement {
             statement_return: None,
             statement_do: None,
             statement_while: Some(StatementWhile::build(tokenizer)),
+            statement_if: None,
+        }
+    }
+
+    fn build_if(tokenizer: &mut Tokenizer) -> Statement {
+        Statement {
+            statement_type: StatementType::If,
+            statement_return: None,
+            statement_do: None,
+            statement_while: None,
+            statement_if: Some(StatementIf::build(tokenizer)),
         }
     }
 
@@ -228,6 +244,10 @@ impl Statement {
 
     pub fn get_while(&self) -> &Option<StatementWhile> {
         &self.statement_while
+    }
+
+    pub fn get_if(&self) -> &Option<StatementIf> {
+        &self.statement_if
     }
 }
 
@@ -279,7 +299,7 @@ impl StatementDo {
 
 struct StatementWhile {
     expression: Expression,
-    statements: Vec<Statement>
+    statements: Vec<Statement>,
 }
 
 impl StatementWhile {
@@ -292,7 +312,10 @@ impl StatementWhile {
         let statements = Statement::build_list(tokenizer);
         tokenizer.consume("}");
 
-        StatementWhile { expression, statements }
+        StatementWhile {
+            expression,
+            statements,
+        }
     }
 
     pub fn get_expression(&self) -> &Expression {
@@ -301,6 +324,67 @@ impl StatementWhile {
 
     pub fn get_statements(&self) -> &Vec<Statement> {
         &self.statements
+    }
+}
+
+struct StatementIf {
+    expression: Expression,
+    statements: Vec<Statement>,
+    else_statements: Option<Vec<Statement>>,
+}
+
+impl StatementIf {
+    pub fn build(tokenizer: &mut Tokenizer) -> StatementIf {
+        tokenizer.consume("if");
+        tokenizer.consume("(");
+        let expression = Expression::build(tokenizer);
+        tokenizer.consume(")");
+        tokenizer.consume("{");
+        let statements = Statement::build_list(tokenizer);
+        tokenizer.consume("}");
+
+        let next_token = tokenizer.peek_next();
+
+        if next_token.is_none() {
+            return StatementIf {
+                expression,
+                statements,
+                else_statements: None,
+            };
+        }
+
+        let next_token = next_token.unwrap();
+
+        if next_token.get_value() == "else" {
+            tokenizer.consume("else");
+            tokenizer.consume("{");
+            let else_statements = Statement::build_list(tokenizer);
+            tokenizer.consume("}");
+
+            return StatementIf {
+                expression,
+                statements,
+                else_statements: Some(else_statements),
+            };
+        }
+
+        StatementIf {
+            expression,
+            statements,
+            else_statements: None,
+        }
+    }
+
+    pub fn get_expression(&self) -> &Expression {
+        &self.expression
+    }
+
+    pub fn get_statements(&self) -> &Vec<Statement> {
+        &self.statements
+    }
+
+    pub fn get_else_statements(&self) -> &Option<Vec<Statement>> {
+        &self.else_statements
     }
 }
 
@@ -822,7 +906,54 @@ mod tests {
         assert_eq!(expression.get_term().get_value(), "x");
 
         let statements = while_statement.get_statements();
-        assert_eq!(statements.len(), 1);        
+        assert_eq!(statements.len(), 1);
+    }
+
+    #[test]
+    fn build_statement_list_if() {
+        let mut tokenizer = Tokenizer::new("if (x < 5) { return 10; }");
+
+        let statements = Statement::build_list(&mut tokenizer);
+
+        assert_eq!(statements.len(), 1);
+
+        let statement = statements.get(0).unwrap();
+
+        assert_eq!(statement.get_type(), &StatementType::If);
+
+        let if_statement = statement.get_if().as_ref().unwrap();
+        assert!(if_statement.get_else_statements().is_none());
+
+        let expression = if_statement.get_expression();
+        assert_eq!(expression.get_term().get_value(), "x");
+
+        let statements = if_statement.get_statements();
+        assert_eq!(statements.len(), 1);
+    }
+
+    #[test]
+    fn build_statement_list_if_else() {
+        let mut tokenizer = Tokenizer::new("if (x < 5) { return 10; } else { return 20; }");
+
+        let statements = Statement::build_list(&mut tokenizer);
+
+        assert_eq!(statements.len(), 1);
+
+        let statement = statements.get(0).unwrap();
+
+        assert_eq!(statement.get_type(), &StatementType::If);
+
+        let if_statement = statement.get_if().as_ref().unwrap();
+        assert!(if_statement.get_else_statements().is_some());
+
+        let expression = if_statement.get_expression();
+        assert_eq!(expression.get_term().get_value(), "x");
+
+        let statements = if_statement.get_statements();
+        assert_eq!(statements.len(), 1);
+
+        let statements = if_statement.get_else_statements().as_ref().unwrap();
+        assert_eq!(statements.len(), 1);
     }
 
     // #[test]
