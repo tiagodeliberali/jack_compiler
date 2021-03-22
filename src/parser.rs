@@ -146,6 +146,7 @@ enum StatementType {
     Do,
     While,
     If,
+    Let,
 }
 struct Statement {
     statement_type: StatementType,
@@ -153,6 +154,7 @@ struct Statement {
     statement_do: Option<StatementDo>,
     statement_while: Option<StatementWhile>,
     statement_if: Option<StatementIf>,
+    statement_let: Option<StatementLet>,
 }
 
 impl Statement {
@@ -186,6 +188,7 @@ impl Statement {
             "do" => Statement::build_do(tokenizer),
             "while" => Statement::build_while(tokenizer),
             "if" => Statement::build_if(tokenizer),
+            "let" => Statement::build_let(tokenizer),
             value => panic!(format!("Invalid statement value: {}", value)),
         }
     }
@@ -197,6 +200,7 @@ impl Statement {
             statement_do: None,
             statement_while: None,
             statement_if: None,
+            statement_let: None,
         }
     }
 
@@ -207,6 +211,7 @@ impl Statement {
             statement_do: Some(StatementDo::build(tokenizer)),
             statement_while: None,
             statement_if: None,
+            statement_let: None,
         }
     }
 
@@ -217,6 +222,7 @@ impl Statement {
             statement_do: None,
             statement_while: Some(StatementWhile::build(tokenizer)),
             statement_if: None,
+            statement_let: None,
         }
     }
 
@@ -227,6 +233,18 @@ impl Statement {
             statement_do: None,
             statement_while: None,
             statement_if: Some(StatementIf::build(tokenizer)),
+            statement_let: None,
+        }
+    }
+
+    fn build_let(tokenizer: &mut Tokenizer) -> Statement {
+        Statement {
+            statement_type: StatementType::Let,
+            statement_return: None,
+            statement_do: None,
+            statement_while: None,
+            statement_if: None,
+            statement_let: Some(StatementLet::build(tokenizer)),
         }
     }
 
@@ -248,6 +266,10 @@ impl Statement {
 
     pub fn get_if(&self) -> &Option<StatementIf> {
         &self.statement_if
+    }
+
+    pub fn get_let(&self) -> &Option<StatementLet> {
+        &self.statement_let
     }
 }
 
@@ -385,6 +407,50 @@ impl StatementIf {
 
     pub fn get_else_statements(&self) -> &Option<Vec<Statement>> {
         &self.else_statements
+    }
+}
+
+struct StatementLet {
+    var_name: String,
+    expression: Expression,
+    array_expression: Option<Expression>,
+}
+
+impl StatementLet {
+    pub fn build(tokenizer: &mut Tokenizer) -> StatementLet {
+        tokenizer.consume("let");
+        let var_name = tokenizer.retrieve_identifier();
+        let mut array_expression: Option<Expression> = None;
+
+        let next_token = tokenizer.peek_next().unwrap();
+
+        if next_token.get_value() == "[" {
+            tokenizer.consume("[");
+            array_expression.replace(Expression::build(tokenizer));
+            tokenizer.consume("]");
+        }
+
+        tokenizer.consume("=");
+        let expression = Expression::build(tokenizer);
+        tokenizer.consume(";");
+
+        StatementLet {
+            var_name,
+            expression,
+            array_expression,
+        }
+    }
+
+    pub fn get_expression(&self) -> &Expression {
+        &self.expression
+    }
+
+    pub fn get_var_name(&self) -> &String {
+        &self.var_name
+    }
+
+    pub fn get_array_expression(&self) -> &Option<Expression> {
+        &self.array_expression
     }
 }
 
@@ -954,6 +1020,49 @@ mod tests {
 
         let statements = if_statement.get_else_statements().as_ref().unwrap();
         assert_eq!(statements.len(), 1);
+    }
+
+    #[test]
+    fn build_statement_list_let() {
+        let mut tokenizer = Tokenizer::new("let x = 25;");
+
+        let statements = Statement::build_list(&mut tokenizer);
+
+        assert_eq!(statements.len(), 1);
+
+        let statement = statements.get(0).unwrap();
+
+        assert_eq!(statement.get_type(), &StatementType::Let);
+
+        let let_statement = statement.get_let().as_ref().unwrap();
+        assert_eq!(let_statement.get_var_name(), "x");
+        assert!(let_statement.get_array_expression().is_none());
+
+        let expression = let_statement.get_expression();
+        assert_eq!(expression.get_term().get_value(), "25");
+    }
+
+    #[test]
+    fn build_statement_list_let_array() {
+        let mut tokenizer = Tokenizer::new("let names[10] = \"test\";");
+
+        let statements = Statement::build_list(&mut tokenizer);
+
+        assert_eq!(statements.len(), 1);
+
+        let statement = statements.get(0).unwrap();
+
+        assert_eq!(statement.get_type(), &StatementType::Let);
+
+        let let_statement = statement.get_let().as_ref().unwrap();
+        assert_eq!(let_statement.get_var_name(), "names");
+        assert!(let_statement.get_array_expression().is_some());
+
+        let array_expression = let_statement.get_array_expression().as_ref().unwrap();
+        assert_eq!(array_expression.get_term().get_value(), "10");
+
+        let expression = let_statement.get_expression();
+        assert_eq!(expression.get_term().get_value(), "test");
     }
 
     // #[test]
