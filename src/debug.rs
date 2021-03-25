@@ -1,4 +1,4 @@
-use crate::parser::ClassNode;
+use crate::parser::*;
 use crate::tokenizer::{TokenType, Tokenizer};
 use std::fs;
 
@@ -12,20 +12,44 @@ pub fn debug_tokenizer(filename: &str, tokenizer: &mut Tokenizer) {
     .expect("Something failed on write file to disk");
 }
 
-pub fn debug_parsed_tree(filename: &str, root_node: &ClassNode) {
+pub fn debug_parsed_tree(filename: &str, root: &TokenTreeItem) {
     let mut result: Vec<String> = Vec::new();
 
-    result.push(String::from("<class>"));
-    result.push(String::from("<keyword> class </keyword>"));
-    result.push(format!(
-        "<identifier> {} </identifier>",
-        root_node.get_identifier()
-    ));
-    result.push(String::from("<symbol> { </symbol>"));
-    result.push(String::from("</class>"));
+    result.extend(debug_token_item(root));
 
     fs::write(filename.replace(".jack", "2.xml"), result.join("\r\n"))
         .expect("Something failed on write file to disk");
+}
+
+fn debug_token_item(item: &TokenTreeItem) -> Vec<String> {
+    let mut result: Vec<String> = Vec::new();
+
+    if let Some(name) = &item.get_name() {
+        result.push(format!("<{}>", name));
+    }
+
+    if let Some(item) = &item.get_item() {
+        result.push(format!(
+            "<{}> {} </{}>",
+            enum_to_str(item.get_type()),
+            item.get_value(),
+            enum_to_str(item.get_type())
+        ));
+    }
+
+    for node in item.get_nodes() {
+        result.extend(debug_token_item(&node));
+    }
+
+    if let Some(name) = &item.get_name() {
+        result.push(format!("</{}>", name));
+    }
+
+    result
+}
+
+fn enum_to_str(value: TokenType) -> String {
+    format!("{:?}", value).to_ascii_lowercase()
 }
 
 fn print_tokens(tokenizer: &mut Tokenizer) -> Vec<String> {
