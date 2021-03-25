@@ -38,7 +38,7 @@ impl Tokenizer {
         None
     }
 
-    pub fn consume(&mut self, value: &str) {
+    pub fn consume(&mut self, value: &str) -> TokenItem {
         let token = self.get_next().unwrap();
 
         if token.get_value() != value {
@@ -48,21 +48,23 @@ impl Tokenizer {
                 token.get_value()
             )
         }
+
+        token.clone()
     }
 
-    pub fn retrieve_identifier(&mut self) -> String {
+    pub fn retrieve_identifier(&mut self) -> TokenItem {
         self.retrieve(TokenType::Identifier)
     }
 
-    pub fn retrieve_symbol(&mut self) -> String {
+    pub fn retrieve_symbol(&mut self) -> TokenItem {
         self.retrieve(TokenType::Symbol)
     }
 
-    pub fn retrieve_keyword(&mut self) -> String {
+    pub fn retrieve_keyword(&mut self) -> TokenItem {
         self.retrieve(TokenType::Keyword)
     }
 
-    fn retrieve(&mut self, expected_type: TokenType) -> String {
+    fn retrieve(&mut self, expected_type: TokenType) -> TokenItem {
         let token = self.get_next().unwrap();
 
         if token.get_type() != expected_type {
@@ -73,10 +75,10 @@ impl Tokenizer {
             )
         }
 
-        token.get_value()
+        token.clone()
     }
 
-    pub fn retrieve_type(&mut self) -> String {
+    pub fn retrieve_type(&mut self) -> TokenItem {
         let type_keywords: [&str; 3] = ["int", "char", "boolean"];
         let token = self.retrieve_any(Vec::from([TokenType::Identifier, TokenType::Keyword]));
 
@@ -90,11 +92,12 @@ impl Tokenizer {
             }
         }
 
-        token.get_value()
+        token.clone()
     }
 
-    pub fn retrieve_op(&mut self) -> String {
-        let token_value = self.retrieve_symbol();
+    pub fn retrieve_op(&mut self) -> TokenItem {
+        let token = self.retrieve_symbol();
+        let token_value = token.get_value();
 
         if !OP_SYMBOLS.contains(&token_value.as_str()) {
             panic!(format!(
@@ -103,37 +106,10 @@ impl Tokenizer {
             ));
         }
 
-        token_value
+        token
     }
 
-    pub fn retrieve_unary_op(&mut self) -> String {
-        let token_value = self.retrieve_symbol();
-
-        if !UNARY_OP_SYMBOLS.contains(&token_value.as_str()) {
-            panic!(format!(
-                "Invalid unary op. Expected {:?}, but found {}",
-                UNARY_OP_SYMBOLS, token_value
-            ));
-        }
-
-        token_value
-    }
-
-    pub fn retrieve_constant(&mut self) -> String {
-        let valid_symbols: [&str; 4] = ["true", "false", "null", "this"];
-        let token_value = self.retrieve_keyword();
-
-        if !valid_symbols.contains(&token_value.as_str()) {
-            panic!(format!(
-                "Invalid keyword constant. Expected {:?}, but found {}",
-                valid_symbols, token_value
-            ));
-        }
-
-        token_value
-    }
-
-    pub fn retrieve_any(&mut self, expected_type: Vec<TokenType>) -> &TokenItem {
+    pub fn retrieve_any(&mut self, expected_type: Vec<TokenType>) -> TokenItem {
         let token = self.get_next().unwrap();
 
         if !expected_type.contains(&token.get_type()) {
@@ -144,10 +120,11 @@ impl Tokenizer {
             )
         }
 
-        token
+        token.clone()
     }
 }
 
+#[derive(PartialEq, Debug, Clone)]
 pub struct TokenItem {
     token_type: TokenType,
     value: String,
@@ -402,7 +379,7 @@ mod tests {
 
         let token = tokenizer.retrieve_type();
 
-        assert_eq!(token, "int");
+        assert_eq!(token.get_value(), "int");
     }
 
     #[test]
