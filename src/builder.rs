@@ -19,7 +19,7 @@ pub fn build_content(content: String) -> String {
 }
 
 fn clear_special_coments(content: String) -> String {
-    let re = Regex::new(r"/\*(.|\r\n)*?\*/").unwrap();
+    let re = Regex::new(r"/\*(.|\r\n|\r|\n)*?\*/").unwrap();
     re.replace_all(&content.as_str(), "").to_string()
 }
 

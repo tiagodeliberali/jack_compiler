@@ -6,7 +6,7 @@ pub fn debug_tokenizer(filename: &str, tokenizer: &mut Tokenizer) {
     let printable_tokens = print_tokens(tokenizer);
 
     fs::write(
-        filename.replace(".jack", "T2.xml"),
+        filename.replace(".jack", "T.xml"),
         printable_tokens.join("\r\n"),
     )
     .expect("Something failed on write file to disk");
@@ -16,8 +16,9 @@ pub fn debug_parsed_tree(filename: &str, root: &TokenTreeItem) {
     let mut result: Vec<String> = Vec::new();
 
     result.extend(debug_token_item(root));
+    result.push(String::new());
 
-    fs::write(filename.replace(".jack", "2.xml"), result.join("\r\n"))
+    fs::write(filename.replace(".jack", ".xml"), result.join("\r\n"))
         .expect("Something failed on write file to disk");
 }
 
@@ -32,7 +33,7 @@ fn debug_token_item(item: &TokenTreeItem) -> Vec<String> {
         result.push(format!(
             "<{}> {} </{}>",
             enum_to_str(item.get_type()),
-            item.get_value(),
+            parse_symbol(&item.get_value().as_str()),
             enum_to_str(item.get_type())
         ));
     }
@@ -49,7 +50,16 @@ fn debug_token_item(item: &TokenTreeItem) -> Vec<String> {
 }
 
 fn enum_to_str(value: TokenType) -> String {
-    format!("{:?}", value).to_ascii_lowercase()
+    let result = match value {
+        TokenType::Identifier => "identifier",
+        TokenType::Integer => "integerConstant",
+        TokenType::Keyword => "keyword",
+        TokenType::None => "ERROR!",
+        TokenType::String => "stringConstant",
+        TokenType::Symbol => "symbol",
+    };
+
+    String::from(result)
 }
 
 fn print_tokens(tokenizer: &mut Tokenizer) -> Vec<String> {
