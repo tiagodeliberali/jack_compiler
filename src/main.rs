@@ -15,8 +15,10 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let path = args.get(1).expect("Please supply a folder or file name");
 
+    let debug = args.get(2).is_some();
+
     if path.ends_with(".jack") {
-        parse_file(&path);
+        parse_file(&path, &debug);
     } else {
         let file_list = fs::read_dir(path).unwrap();
 
@@ -26,22 +28,26 @@ fn main() {
             let file_name = Path::new(file_path).file_name().unwrap().to_str().unwrap();
 
             if file_name.ends_with(".jack") {
-                parse_file(&file_path);
+                parse_file(&file_path, &debug);
             }
         }
     }
 }
 
-fn parse_file(filename: &str) {
+fn parse_file(filename: &str, debug: &bool) {
     let content = fs::read_to_string(filename).expect("Something went wrong reading the file");
 
     let clean_code = build_content(content);
 
     let mut tokenizer = Tokenizer::new(&clean_code);
 
-    debug_tokenizer(filename, &mut tokenizer);
+    if *debug {
+        debug_tokenizer(filename, &mut tokenizer);
+    }
 
     let root = ClassNode::build(&mut tokenizer);
 
-    debug_parsed_tree(&filename, &root);
+    if *debug {
+        debug_parsed_tree(&filename, &root);
+    }
 }
