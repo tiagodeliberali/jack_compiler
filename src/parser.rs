@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use crate::tokenizer::{TokenItem, TokenType, Tokenizer, UNARY_OP_SYMBOLS};
 
 pub struct TokenTreeItem {
-    pub name: Option<String>,
-    pub item: Option<TokenItem>,
-    pub nodes: Vec<TokenTreeItem>,
+    name: Option<String>,
+    item: Option<TokenItem>,
+    nodes: Vec<TokenTreeItem>,
 }
 
 impl TokenTreeItem {
