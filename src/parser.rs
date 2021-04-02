@@ -679,7 +679,7 @@ mod tests {
     }
 
     #[test]
-    fn build_class_var_dec_list_without_data() {
+    fn build_subroutine_with_argumants_and_vars() {
         let mut tokenizer =
             Tokenizer::new("method void test(int x, String name) {var boolean a, b;}");
         let mut symbol_table = SymbolTable::new();
@@ -714,7 +714,26 @@ mod tests {
 
         assert_eq!(result.nodes.len(), 7);
         let identifier = result.nodes.get(2).unwrap();
-        assert_eq!(identifier.get_item().as_ref().unwrap().get_value(), "test")
+        assert_eq!(identifier.get_item().as_ref().unwrap().get_value(), "test");
+    }
+
+    #[test]
+    fn build_list_of_subroutines() {
+        let mut tokenizer =
+            Tokenizer::new("method void print(int x) {} function int count(String name) {}");
+        let symbol_table = SymbolTable::new();
+
+        let result = SubroutineDec::build(&mut tokenizer, &symbol_table);
+
+        assert_eq!(result.len(), 2);
+
+        let subroutine = result.get(0).unwrap();
+        let identifier = subroutine.nodes.get(2).unwrap();
+        assert_eq!(identifier.get_item().as_ref().unwrap().get_value(), "print");
+
+        let subroutine = result.get(1).unwrap();
+        let identifier = subroutine.nodes.get(2).unwrap();
+        assert_eq!(identifier.get_item().as_ref().unwrap().get_value(), "count");
     }
 
     //     #[test]
