@@ -6,6 +6,7 @@ pub struct TokenTreeItem {
     name: Option<String>,
     item: Option<TokenItem>,
     nodes: Vec<TokenTreeItem>,
+    symbol_table: Option<SymbolTable>,
 }
 
 impl TokenTreeItem {
@@ -14,6 +15,7 @@ impl TokenTreeItem {
             name: Some(String::from(name)),
             item: None,
             nodes: Vec::new(),
+            symbol_table: None,
         }
     }
 
@@ -22,11 +24,16 @@ impl TokenTreeItem {
             name: None,
             item: Some(token),
             nodes: Vec::new(),
+            symbol_table: None,
         }
     }
 
     pub fn push(&mut self, item: TokenItem) {
         self.nodes.push(TokenTreeItem::new(item));
+    }
+
+    pub fn set_symbol_table(&mut self, symbol_table: SymbolTable) {
+        self.symbol_table.replace(symbol_table);
     }
 
     pub fn push_item(&mut self, item: TokenTreeItem) {
@@ -43,6 +50,10 @@ impl TokenTreeItem {
 
     pub fn get_nodes(&self) -> &Vec<TokenTreeItem> {
         &self.nodes
+    }
+
+    pub fn get_symbol_table(&self) -> &Option<SymbolTable> {
+        &self.symbol_table
     }
 }
 
@@ -79,6 +90,21 @@ impl SymbolItem {
             position,
         }
     }
+
+    pub fn get_type_as_str(&self) -> String {
+        let result = match self.symbol_type {
+            SymbolType::Argument => "argument",
+            SymbolType::Field => "field",
+            SymbolType::Local => "local",
+            SymbolType::StaticType => "static",
+        };
+
+        String::from(result)
+    }
+
+    pub fn get_position(&self) -> usize {
+        self.position
+    }
 }
 
 pub struct SymbolTable {
@@ -88,7 +114,7 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
-    fn new() -> SymbolTable {
+    pub fn new() -> SymbolTable {
         let mut types = HashMap::new();
 
         types.insert(SymbolType::Field, 0 as usize);
@@ -111,7 +137,7 @@ impl SymbolTable {
         }
     }
 
-    fn add(&mut self, symbol_type: &str, kind: &str, name: &str) {
+    pub fn add(&mut self, symbol_type: &str, kind: &str, name: &str) {
         let symbol_type = match symbol_type {
             "field" => SymbolType::Field,
             "static" => SymbolType::StaticType,
@@ -139,13 +165,27 @@ impl SymbolTable {
         self.indexes.insert(String::from(name), id);
     }
 
-    fn get(&self, name: &str) -> &SymbolItem {
+    pub fn get(&self, name: &str) -> &SymbolItem {
         let index = self
             .indexes
             .get(name)
             .expect("Name nof found on indexes")
             .clone();
         self.symbols.get(index).unwrap()
+    }
+
+    pub fn get_pop(&self, name: &str) -> String {
+        let symbol = self.get(name);
+        format!("pop {} {}", symbol.get_type_as_str(), symbol.get_position())
+    }
+
+    pub fn get_push(&self, name: &str) -> String {
+        let symbol = self.get(name);
+        format!(
+            "push {} {}",
+            symbol.get_type_as_str(),
+            symbol.get_position()
+        )
     }
 }
 
@@ -283,11 +323,7 @@ impl SubroutineDec {
                 break;
             }
 
-            let mut symbol_table = symbol_table.clone();
-            result.push(SubroutineDec::build_subroutine(
-                tokenizer,
-                &mut symbol_table,
-            ));
+            result.push(SubroutineDec::build_subroutine(tokenizer, &symbol_table));
         }
 
         result
@@ -295,20 +331,26 @@ impl SubroutineDec {
 
     pub fn build_subroutine(
         tokenizer: &mut Tokenizer,
-        symbol_table: &mut SymbolTable,
+        symbol_table: &SymbolTable,
     ) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("subroutineDec");
+        let mut symbol_table = symbol_table.clone();
 
         root.push(tokenizer.retrieve_keyword());
         root.push(tokenizer.retrieve_any(Vec::from([TokenType::Keyword, TokenType::Identifier])));
         root.push(tokenizer.retrieve_identifier());
         root.push(tokenizer.consume("("));
 
-        root.push_item(SubroutineDec::build_parameters(tokenizer, symbol_table));
+        root.push_item(SubroutineDec::build_parameters(
+            tokenizer,
+            &mut symbol_table,
+        ));
 
         root.push(tokenizer.consume(")"));
 
-        root.push_item(SubroutineDec::build_body(tokenizer, symbol_table));
+        root.push_item(SubroutineDec::build_body(tokenizer, &mut symbol_table));
+
+        root.set_symbol_table(symbol_table);
 
         root
     }
@@ -361,7 +403,7 @@ impl SubroutineDec {
     }
 }
 
-struct Statement {}
+pub struct Statement {}
 
 impl Statement {
     pub fn build_list(tokenizer: &mut Tokenizer) -> TokenTreeItem {
@@ -682,9 +724,10 @@ mod tests {
     fn build_subroutine_with_argumants_and_vars() {
         let mut tokenizer =
             Tokenizer::new("method void test(int x, String name) {var boolean a, b;}");
-        let mut symbol_table = SymbolTable::new();
+        let symbol_table = SymbolTable::new();
 
-        let result = SubroutineDec::build_subroutine(&mut tokenizer, &mut symbol_table);
+        let result = SubroutineDec::build_subroutine(&mut tokenizer, &symbol_table);
+        let symbol_table = result.get_symbol_table().as_ref().unwrap();
 
         assert_eq!(symbol_table.symbols.len(), 4);
 
