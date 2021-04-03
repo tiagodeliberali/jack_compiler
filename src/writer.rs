@@ -4,11 +4,15 @@ use crate::{
 };
 struct VmWriter {
     symbol_table: Option<SymbolTable>,
+    class_name: String,
 }
 
 impl VmWriter {
     pub fn new() -> VmWriter {
-        VmWriter { symbol_table: None }
+        VmWriter {
+            symbol_table: None,
+            class_name: String::new(),
+        }
     }
 
     pub fn get_symbol_table(&self) -> &SymbolTable {
@@ -20,6 +24,14 @@ impl VmWriter {
 
     pub fn set_symbol_table(&mut self, symbol_table: SymbolTable) {
         self.symbol_table.replace(symbol_table);
+    }
+
+    pub fn get_class_name(&self) -> &String {
+        &self.class_name
+    }
+
+    pub fn set_class_name(&mut self, value: String) {
+        self.class_name = value;
     }
 
     pub fn build(&self, tree: &TokenTreeItem) -> Vec<String> {
@@ -37,6 +49,8 @@ impl VmWriter {
             "term" => self.build_term(tree),
             "letStatement" => self.build_let(tree),
             "returnStatement" => self.build_return(tree),
+            "doStatement" => self.build_do(tree),
+            "expressionList" => self.build_expression_list(tree),
             value => panic!(format!("Unexpected token: {}", value)),
         }
     }
@@ -112,6 +126,8 @@ impl VmWriter {
                         result.push(String::from("push constant 0"));
                         result.push(String::from("not"));
                     }
+                    "this" => result.push(String::from("push pointer 0")),
+                    "null" => result.push(String::from("push constant 0")),
                     v => panic!(format!("Invalid keywork on term build: {}", v)),
                 }
             }
@@ -154,6 +170,57 @@ impl VmWriter {
         }
 
         result.push(String::from("return"));
+
+        result
+    }
+
+    fn build_do(&self, tree: &TokenTreeItem) -> Vec<String> {
+        VmWriter::validate_name(tree, "doStatement");
+        let mut result = Vec::new();
+
+        let mut base_index: usize = 1;
+
+        let class_name = if tree.get_nodes().len() == 8 {
+            base_index += 2;
+            tree.get_nodes()
+                .get(1)
+                .unwrap()
+                .get_item()
+                .as_ref()
+                .unwrap()
+                .get_value()
+        } else {
+            self.get_class_name().clone()
+        };
+
+        let method = tree
+            .get_nodes()
+            .get(base_index)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+        let expression_list = tree.get_nodes().get(base_index + 2).unwrap();
+        let arguments = (expression_list.get_nodes().len() + 1) / 2;
+
+        result.extend(self.build(expression_list));
+
+        result.push(format!("call {}.{} {}", class_name, method, arguments));
+
+        result
+    }
+
+    fn build_expression_list(&self, tree: &TokenTreeItem) -> Vec<String> {
+        VmWriter::validate_name(tree, "expressionList");
+        let mut result = Vec::new();
+
+        let mut i = 0;
+
+        while i < tree.get_nodes().len() {
+            result.extend(self.build(tree.get_nodes().get(i).unwrap()));
+            i += 2;
+        }
 
         result
     }
@@ -282,5 +349,38 @@ mod tests {
         let code: Vec<String> = writer.build(&tree);
 
         assert_eq!(code.get(0).unwrap(), "return");
+    }
+
+    #[test]
+    fn build_do_this() {
+        let mut tokenizer = Tokenizer::new("do Memory.deAlloc(this);");
+        let tree = Statement::build(&mut tokenizer);
+
+        let writer = VmWriter::new();
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "push pointer 0");
+        assert_eq!(code.get(1).unwrap(), "call Memory.deAlloc 1");
+    }
+
+    #[test]
+    fn build_do_with_args() {
+        let mut tokenizer = Tokenizer::new("do print(name, age, country);");
+        let tree = Statement::build(&mut tokenizer);
+
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add("var", "String", "name");
+        symbol_table.add("var", "int", "age");
+        symbol_table.add("var", "String", "country");
+
+        let mut writer = VmWriter::new();
+        writer.set_symbol_table(symbol_table);
+        writer.set_class_name(String::from("TestClass"));
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "push local 0");
+        assert_eq!(code.get(1).unwrap(), "push local 1");
+        assert_eq!(code.get(2).unwrap(), "push local 2");
+        assert_eq!(code.get(3).unwrap(), "call TestClass.print 3");
     }
 }
