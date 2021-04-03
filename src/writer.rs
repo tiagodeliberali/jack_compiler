@@ -157,6 +157,17 @@ impl VmWriter {
                         result.extend(self.build(another_term));
                         result.push(String::from("neg"))
                     }
+                    "~" => {
+                        let another_term = tree.get_nodes().get(1).unwrap();
+
+                        result.extend(self.build(another_term));
+                        result.push(String::from("not"))
+                    }
+                    "(" => {
+                        let another_term = tree.get_nodes().get(1).unwrap();
+
+                        result.extend(self.build(another_term));
+                    }
                     v => panic!(format!("Invalid symbol on term build: {}", v)),
                 }
             }
@@ -325,6 +336,21 @@ mod tests {
         assert_eq!(code.get(2).unwrap(), "+");
         assert_eq!(code.get(3).unwrap(), "push constant 3");
         assert_eq!(code.get(4).unwrap(), "-");
+    }
+
+    #[test]
+    fn build_expression_with_parenthesis() {
+        let tokenizer = Tokenizer::new("1 + (4 * 3)");
+        let tree = Expression::build(&tokenizer);
+
+        let writer = VmWriter::new();
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "push constant 1");
+        assert_eq!(code.get(1).unwrap(), "push constant 4");
+        assert_eq!(code.get(2).unwrap(), "push constant 3");
+        assert_eq!(code.get(3).unwrap(), "Math.multiply 2");
+        assert_eq!(code.get(4).unwrap(), "+");
     }
 
     #[test]
