@@ -192,7 +192,7 @@ impl SymbolTable {
 pub struct ClassNode {}
 
 impl ClassNode {
-    pub fn build(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    pub fn build(tokenizer: &Tokenizer) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("class");
         let mut symbol_table = SymbolTable::new();
 
@@ -222,7 +222,7 @@ pub struct VarDec {}
 
 impl VarDec {
     pub fn build_class(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &Tokenizer,
         symbol_table: &mut SymbolTable,
     ) -> Vec<TokenTreeItem> {
         let mut result = Vec::new();
@@ -248,10 +248,7 @@ impl VarDec {
         result
     }
 
-    pub fn build_var(
-        tokenizer: &mut Tokenizer,
-        symbol_table: &mut SymbolTable,
-    ) -> Vec<TokenTreeItem> {
+    pub fn build_var(tokenizer: &Tokenizer, symbol_table: &mut SymbolTable) -> Vec<TokenTreeItem> {
         let mut result = Vec::new();
 
         while let Some(current_token) = tokenizer.peek_next() {
@@ -270,7 +267,7 @@ impl VarDec {
     }
 
     fn build_field(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &Tokenizer,
         name: &str,
         descriptor: &str,
         symbol_table: &mut SymbolTable,
@@ -315,7 +312,7 @@ impl VarDec {
 struct SubroutineDec {}
 
 impl SubroutineDec {
-    pub fn build(tokenizer: &mut Tokenizer, symbol_table: &SymbolTable) -> Vec<TokenTreeItem> {
+    pub fn build(tokenizer: &Tokenizer, symbol_table: &SymbolTable) -> Vec<TokenTreeItem> {
         let mut result = Vec::new();
 
         while let Some(next_token) = tokenizer.peek_next() {
@@ -329,10 +326,7 @@ impl SubroutineDec {
         result
     }
 
-    pub fn build_subroutine(
-        tokenizer: &mut Tokenizer,
-        symbol_table: &SymbolTable,
-    ) -> TokenTreeItem {
+    pub fn build_subroutine(tokenizer: &Tokenizer, symbol_table: &SymbolTable) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("subroutineDec");
         let mut symbol_table = symbol_table.clone();
 
@@ -355,7 +349,7 @@ impl SubroutineDec {
         root
     }
 
-    fn build_body(tokenizer: &mut Tokenizer, symbol_table: &mut SymbolTable) -> TokenTreeItem {
+    fn build_body(tokenizer: &Tokenizer, symbol_table: &mut SymbolTable) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("subroutineBody");
 
         root.push(tokenizer.consume("{"));
@@ -371,10 +365,7 @@ impl SubroutineDec {
         root
     }
 
-    fn build_parameters(
-        tokenizer: &mut Tokenizer,
-        symbol_table: &mut SymbolTable,
-    ) -> TokenTreeItem {
+    fn build_parameters(tokenizer: &Tokenizer, symbol_table: &mut SymbolTable) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("parameterList");
 
         while let Some(next_token) = tokenizer.peek_next() {
@@ -406,7 +397,7 @@ impl SubroutineDec {
 pub struct Statement {}
 
 impl Statement {
-    pub fn build_list(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    pub fn build_list(tokenizer: &Tokenizer) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("statements");
 
         while let Some(next_token) = tokenizer.peek_next() {
@@ -420,7 +411,7 @@ impl Statement {
         root
     }
 
-    pub fn build(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    pub fn build(tokenizer: &Tokenizer) -> TokenTreeItem {
         let next_token = tokenizer.peek_next().unwrap();
 
         if next_token.get_type() != TokenType::Keyword {
@@ -441,7 +432,7 @@ impl Statement {
         }
     }
 
-    pub fn build_return(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    pub fn build_return(tokenizer: &Tokenizer) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("returnStatement");
 
         root.push(tokenizer.consume("return"));
@@ -459,7 +450,7 @@ impl Statement {
         root
     }
 
-    pub fn build_do(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    pub fn build_do(tokenizer: &Tokenizer) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("doStatement");
 
         root.push(tokenizer.consume("do"));
@@ -472,7 +463,7 @@ impl Statement {
         root
     }
 
-    pub fn build_while(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    pub fn build_while(tokenizer: &Tokenizer) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("whileStatement");
 
         root.push(tokenizer.consume("while"));
@@ -486,7 +477,7 @@ impl Statement {
         root
     }
 
-    pub fn build_if(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    pub fn build_if(tokenizer: &Tokenizer) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("ifStatement");
 
         root.push(tokenizer.consume("if"));
@@ -517,7 +508,7 @@ impl Statement {
         root
     }
 
-    pub fn build_let(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    pub fn build_let(tokenizer: &Tokenizer) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("letStatement");
 
         root.push(tokenizer.consume("let"));
@@ -542,7 +533,7 @@ impl Statement {
 pub struct Expression {}
 
 impl Expression {
-    pub fn build(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    pub fn build(tokenizer: &Tokenizer) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("expression");
 
         root.push_item(Term::build(tokenizer));
@@ -563,7 +554,7 @@ impl Expression {
 struct SubroutineCall {}
 
 impl SubroutineCall {
-    pub fn build(root: &mut TokenTreeItem, tokenizer: &mut Tokenizer) {
+    pub fn build(root: &mut TokenTreeItem, tokenizer: &Tokenizer) {
         let next_token = tokenizer.peek_next().unwrap();
 
         if next_token.get_type() == TokenType::Symbol && next_token.get_value() == "(" {
@@ -588,7 +579,7 @@ impl SubroutineCall {
         panic!("Invalid next token on building subroutine call");
     }
 
-    fn build_expression_list(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    fn build_expression_list(tokenizer: &Tokenizer) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("expressionList");
 
         let next_token = tokenizer.peek_next();
@@ -618,7 +609,7 @@ impl SubroutineCall {
 struct Term {}
 
 impl Term {
-    pub fn build(tokenizer: &mut Tokenizer) -> TokenTreeItem {
+    pub fn build(tokenizer: &Tokenizer) -> TokenTreeItem {
         let mut root = TokenTreeItem::new_root("term");
 
         let token = tokenizer.get_next().unwrap();
@@ -635,7 +626,7 @@ impl Term {
         root
     }
 
-    fn build_identifier(root: &mut TokenTreeItem, tokenizer: &mut Tokenizer) {
+    fn build_identifier(root: &mut TokenTreeItem, tokenizer: &Tokenizer) {
         let next_token = tokenizer.peek_next();
 
         if next_token.is_none() {
@@ -657,7 +648,7 @@ impl Term {
         }
     }
 
-    fn build_symbol(value: &str, root: &mut TokenTreeItem, tokenizer: &mut Tokenizer) {
+    fn build_symbol(value: &str, root: &mut TokenTreeItem, tokenizer: &Tokenizer) {
         if value == "(" {
             root.push_item(Expression::build(tokenizer));
             root.push(tokenizer.consume(")"));
@@ -681,9 +672,9 @@ mod tests {
 
     #[test]
     fn build_root_node() {
-        let mut tokenizer = Tokenizer::new("class Test {}");
+        let tokenizer = Tokenizer::new("class Test {}");
 
-        let result = ClassNode::build(&mut tokenizer);
+        let result = ClassNode::build(&tokenizer);
 
         let name = result.get_name().as_ref();
         assert!(&name.is_some());
@@ -692,10 +683,10 @@ mod tests {
 
     #[test]
     fn build_class_var_dec_list() {
-        let mut tokenizer = Tokenizer::new("field int x, y; static String name;");
+        let tokenizer = Tokenizer::new("field int x, y; static String name;");
         let mut symbol_table = SymbolTable::new();
 
-        let result = VarDec::build_class(&mut tokenizer, &mut symbol_table);
+        let result = VarDec::build_class(&tokenizer, &mut symbol_table);
 
         assert_eq!(symbol_table.symbols.len(), 3);
 
@@ -722,11 +713,10 @@ mod tests {
 
     #[test]
     fn build_subroutine_with_argumants_and_vars() {
-        let mut tokenizer =
-            Tokenizer::new("method void test(int x, String name) {var boolean a, b;}");
+        let tokenizer = Tokenizer::new("method void test(int x, String name) {var boolean a, b;}");
         let symbol_table = SymbolTable::new();
 
-        let result = SubroutineDec::build_subroutine(&mut tokenizer, &symbol_table);
+        let result = SubroutineDec::build_subroutine(&tokenizer, &symbol_table);
         let symbol_table = result.get_symbol_table().as_ref().unwrap();
 
         assert_eq!(symbol_table.symbols.len(), 4);
@@ -762,11 +752,11 @@ mod tests {
 
     #[test]
     fn build_list_of_subroutines() {
-        let mut tokenizer =
+        let tokenizer =
             Tokenizer::new("method void print(int x) {} function int count(String name) {}");
         let symbol_table = SymbolTable::new();
 
-        let result = SubroutineDec::build(&mut tokenizer, &symbol_table);
+        let result = SubroutineDec::build(&tokenizer, &symbol_table);
 
         assert_eq!(result.len(), 2);
 
@@ -783,7 +773,7 @@ mod tests {
     //     fn build_term_integer() {
     //         let mut tokenizer = Tokenizer::new("123");
 
-    //         let result = Term::build(&mut tokenizer);
+    //         let result = Term::build(&tokenizer);
 
     //         assert_eq!(result.get_type(), &TermType::Integer);
     //         assert_eq!(result.get_value(), "123");
@@ -793,7 +783,7 @@ mod tests {
     //     fn build_term_string() {
     //         let mut tokenizer = Tokenizer::new("\"test string\"");
 
-    //         let result = Term::build(&mut tokenizer);
+    //         let result = Term::build(&tokenizer);
 
     //         assert_eq!(result.get_type(), &TermType::String);
     //         assert_eq!(result.get_value(), "test string");
@@ -803,7 +793,7 @@ mod tests {
     //     fn build_term_keyword() {
     //         let mut tokenizer = Tokenizer::new("this");
 
-    //         let result = Term::build(&mut tokenizer);
+    //         let result = Term::build(&tokenizer);
 
     //         assert_eq!(result.get_type(), &TermType::Keyword);
     //         assert_eq!(result.get_value(), "this");
@@ -813,7 +803,7 @@ mod tests {
     //     fn build_term_var_name() {
     //         let mut tokenizer = Tokenizer::new("color");
 
-    //         let result = Term::build(&mut tokenizer);
+    //         let result = Term::build(&tokenizer);
 
     //         assert_eq!(result.get_type(), &TermType::VarName);
     //         assert_eq!(result.get_value(), "color");
@@ -823,7 +813,7 @@ mod tests {
     //     fn build_term_array() {
     //         let mut tokenizer = Tokenizer::new("position[10]");
 
-    //         let result = Term::build(&mut tokenizer);
+    //         let result = Term::build(&tokenizer);
 
     //         assert_eq!(result.get_type(), &TermType::ArrayCall);
     //         assert_eq!(result.get_value(), "position");
@@ -836,7 +826,7 @@ mod tests {
     //     fn build_term_subroutine() {
     //         let mut tokenizer = Tokenizer::new("print(\"my name\", 10)");
 
-    //         let result = Term::build(&mut tokenizer);
+    //         let result = Term::build(&tokenizer);
 
     //         assert_eq!(result.get_type(), &TermType::SubroutineCall);
     //         assert_eq!(result.get_value(), "");
@@ -855,7 +845,7 @@ mod tests {
     //     fn build_term_subroutine_with_class() {
     //         let mut tokenizer = Tokenizer::new("Console.write()");
 
-    //         let result = Term::build(&mut tokenizer);
+    //         let result = Term::build(&tokenizer);
 
     //         assert_eq!(result.get_type(), &TermType::SubroutineCall);
     //         assert_eq!(result.get_value(), "");
@@ -873,7 +863,7 @@ mod tests {
     //     fn build_symbol_with_expression() {
     //         let mut tokenizer = Tokenizer::new("(x + 2)");
 
-    //         let result = Term::build(&mut tokenizer);
+    //         let result = Term::build(&tokenizer);
 
     //         assert_eq!(result.get_type(), &TermType::Expression);
 
@@ -892,7 +882,7 @@ mod tests {
     //     fn build_symbol_with_unary() {
     //         let mut tokenizer = Tokenizer::new("-x");
 
-    //         let result = Term::build(&mut tokenizer);
+    //         let result = Term::build(&tokenizer);
 
     //         assert_eq!(result.get_type(), &TermType::VarName);
     //         assert_eq!(result.get_value(), "x");
@@ -903,7 +893,7 @@ mod tests {
     //     fn build_statement_list_return_expression() {
     //         let mut tokenizer = Tokenizer::new("return name;");
 
-    //         let statements = Statement::build_list(&mut tokenizer);
+    //         let statements = Statement::build_list(&tokenizer);
 
     //         assert_eq!(statements.len(), 1);
 
@@ -925,7 +915,7 @@ mod tests {
     //     fn build_statement_list_return() {
     //         let mut tokenizer = Tokenizer::new("return;");
 
-    //         let statements = Statement::build_list(&mut tokenizer);
+    //         let statements = Statement::build_list(&tokenizer);
 
     //         assert_eq!(statements.len(), 1);
 
@@ -946,7 +936,7 @@ mod tests {
     //     fn build_statement_list_do() {
     //         let mut tokenizer = Tokenizer::new("do Console.print(test);");
 
-    //         let statements = Statement::build_list(&mut tokenizer);
+    //         let statements = Statement::build_list(&tokenizer);
 
     //         assert_eq!(statements.len(), 1);
 
@@ -963,7 +953,7 @@ mod tests {
     //     fn build_statement_list_while() {
     //         let mut tokenizer = Tokenizer::new("while (x < 5) { do Console.print(test); }");
 
-    //         let statements = Statement::build_list(&mut tokenizer);
+    //         let statements = Statement::build_list(&tokenizer);
 
     //         assert_eq!(statements.len(), 1);
 
@@ -984,7 +974,7 @@ mod tests {
     //     fn build_statement_list_if() {
     //         let mut tokenizer = Tokenizer::new("if (x < 5) { return 10; }");
 
-    //         let statements = Statement::build_list(&mut tokenizer);
+    //         let statements = Statement::build_list(&tokenizer);
 
     //         assert_eq!(statements.len(), 1);
 
@@ -1006,7 +996,7 @@ mod tests {
     //     fn build_statement_list_if_else() {
     //         let mut tokenizer = Tokenizer::new("if (x < 5) { return 10; } else { return 20; }");
 
-    //         let statements = Statement::build_list(&mut tokenizer);
+    //         let statements = Statement::build_list(&tokenizer);
 
     //         assert_eq!(statements.len(), 1);
 
@@ -1031,7 +1021,7 @@ mod tests {
     //     fn build_statement_list_let() {
     //         let mut tokenizer = Tokenizer::new("let x = 25;");
 
-    //         let statements = Statement::build_list(&mut tokenizer);
+    //         let statements = Statement::build_list(&tokenizer);
 
     //         assert_eq!(statements.len(), 1);
 
@@ -1051,7 +1041,7 @@ mod tests {
     //     fn build_statement_list_let_array() {
     //         let mut tokenizer = Tokenizer::new("let names[10] = \"test\";");
 
-    //         let statements = Statement::build_list(&mut tokenizer);
+    //         let statements = Statement::build_list(&tokenizer);
 
     //         assert_eq!(statements.len(), 1);
 
@@ -1074,7 +1064,7 @@ mod tests {
     //     fn build_subroutine_dec_list_string_function() {
     //         let mut tokenizer = Tokenizer::new("function String print() {}");
 
-    //         let result = SubroutineDec::build(&mut tokenizer);
+    //         let result = SubroutineDec::build(&tokenizer);
 
     //         assert_eq!(result.len(), 1);
 
@@ -1089,7 +1079,7 @@ mod tests {
     //     fn build_subroutine_dec_list_multiple_items() {
     //         let mut tokenizer = Tokenizer::new("method void test() {} function String print() {}");
 
-    //         let result = SubroutineDec::build(&mut tokenizer);
+    //         let result = SubroutineDec::build(&tokenizer);
 
     //         assert_eq!(result.len(), 2);
     //     }
@@ -1098,7 +1088,7 @@ mod tests {
     //     fn build_subroutine_dec_list_void_method() {
     //         let mut tokenizer = Tokenizer::new("method void test(int x, String name) {var int y; let y = x + 1; do print(y, name); return;}");
 
-    //         let result = SubroutineDec::build(&mut tokenizer);
+    //         let result = SubroutineDec::build(&tokenizer);
 
     //         assert_eq!(result.len(), 1);
 

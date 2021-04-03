@@ -2,9 +2,12 @@ use crate::{
     parser::{SymbolTable, TokenTreeItem},
     tokenizer::TokenType,
 };
+use std::cell::Cell;
+
 struct VmWriter {
     symbol_table: Option<SymbolTable>,
     class_name: String,
+    current_id: Cell<usize>,
 }
 
 impl VmWriter {
@@ -12,6 +15,7 @@ impl VmWriter {
         VmWriter {
             symbol_table: None,
             class_name: String::new(),
+            current_id: Cell::new(0),
         }
     }
 
@@ -32,6 +36,13 @@ impl VmWriter {
 
     pub fn set_class_name(&mut self, value: String) {
         self.class_name = value;
+    }
+
+    pub fn get_next_id(&self) -> usize {
+        let id = self.current_id.get();
+        self.current_id.set(id + 1);
+
+        id
     }
 
     pub fn build(&self, tree: &TokenTreeItem) -> Vec<String> {
@@ -244,7 +255,7 @@ impl VmWriter {
     fn build_while(&self, tree: &TokenTreeItem) -> Vec<String> {
         VmWriter::validate_name(tree, "whileStatement");
         let mut result = Vec::new();
-        let count = 0;
+        let count = self.get_next_id();
 
         result.push(format!("label WHILE_EXP{}", count));
 
@@ -305,7 +316,7 @@ mod tests {
     #[test]
     fn build_expression_with_constants() {
         let mut tokenizer = Tokenizer::new("1 + 4 - 3");
-        let tree = Expression::build(&mut tokenizer);
+        let tree = Expression::build(&tokenizer);
 
         let writer = VmWriter::new();
         let code: Vec<String> = writer.build(&tree);
@@ -324,7 +335,7 @@ mod tests {
         let mut symbol_table = SymbolTable::new();
         symbol_table.add("var", "int", "x");
 
-        let tree = Statement::build(&mut tokenizer);
+        let tree = Statement::build(&tokenizer);
 
         let mut writer = VmWriter::new();
         writer.set_symbol_table(symbol_table);
@@ -343,7 +354,7 @@ mod tests {
         let mut symbol_table = SymbolTable::new();
         symbol_table.add("var", "int", "x");
 
-        let tree = Statement::build(&mut tokenizer);
+        let tree = Statement::build(&tokenizer);
 
         let mut writer = VmWriter::new();
         writer.set_symbol_table(symbol_table);
@@ -362,7 +373,7 @@ mod tests {
         let mut symbol_table = SymbolTable::new();
         symbol_table.add("var", "String", "name");
 
-        let tree = Statement::build(&mut tokenizer);
+        let tree = Statement::build(&tokenizer);
 
         let mut writer = VmWriter::new();
         writer.set_symbol_table(symbol_table);
@@ -382,7 +393,7 @@ mod tests {
     #[test]
     fn build_return_false() {
         let mut tokenizer = Tokenizer::new("return true;");
-        let tree = Statement::build(&mut tokenizer);
+        let tree = Statement::build(&tokenizer);
 
         let writer = VmWriter::new();
         let code: Vec<String> = writer.build(&tree);
@@ -395,7 +406,7 @@ mod tests {
     #[test]
     fn build_return_void() {
         let mut tokenizer = Tokenizer::new("return;");
-        let tree = Statement::build(&mut tokenizer);
+        let tree = Statement::build(&tokenizer);
 
         let writer = VmWriter::new();
         let code: Vec<String> = writer.build(&tree);
@@ -406,7 +417,7 @@ mod tests {
     #[test]
     fn build_do_this() {
         let mut tokenizer = Tokenizer::new("do Memory.deAlloc(this);");
-        let tree = Statement::build(&mut tokenizer);
+        let tree = Statement::build(&tokenizer);
 
         let writer = VmWriter::new();
         let code: Vec<String> = writer.build(&tree);
@@ -418,7 +429,7 @@ mod tests {
     #[test]
     fn build_do_with_args() {
         let mut tokenizer = Tokenizer::new("do print(name, age, country);");
-        let tree = Statement::build(&mut tokenizer);
+        let tree = Statement::build(&tokenizer);
 
         let mut symbol_table = SymbolTable::new();
         symbol_table.add("var", "String", "name");
@@ -439,7 +450,7 @@ mod tests {
     #[test]
     fn build_while() {
         let mut tokenizer = Tokenizer::new("while (x < 10) { let a = -1; }");
-        let tree = Statement::build(&mut tokenizer);
+        let tree = Statement::build(&tokenizer);
 
         let mut symbol_table = SymbolTable::new();
         symbol_table.add("argument", "int", "x");

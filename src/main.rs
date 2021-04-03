@@ -40,13 +40,13 @@ fn parse_file(filename: &str, debug: &bool) {
 
     let clean_code = build_content(content);
 
-    let mut tokenizer = Tokenizer::new(&clean_code);
+    let tokenizer = Tokenizer::new(&clean_code);
 
     if *debug {
-        debug_tokenizer(filename, &mut tokenizer);
+        debug_tokenizer(filename, &tokenizer);
     }
 
-    let root = ClassNode::build(&mut tokenizer);
+    let root = ClassNode::build(&tokenizer);
 
     if *debug {
         debug_parsed_tree(&filename, &root);

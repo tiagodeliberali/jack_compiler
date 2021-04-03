@@ -2,7 +2,7 @@ use crate::parser::*;
 use crate::tokenizer::{TokenType, Tokenizer};
 use std::fs;
 
-pub fn debug_tokenizer(filename: &str, tokenizer: &mut Tokenizer) {
+pub fn debug_tokenizer(filename: &str, tokenizer: &Tokenizer) {
     let printable_tokens = print_tokens(tokenizer);
 
     fs::write(
@@ -62,7 +62,7 @@ fn enum_to_str(value: TokenType) -> String {
     String::from(result)
 }
 
-fn print_tokens(tokenizer: &mut Tokenizer) -> Vec<String> {
+fn print_tokens(tokenizer: &Tokenizer) -> Vec<String> {
     let mut result: Vec<String> = Vec::new();
     result.push(String::from("<tokens>"));
 
