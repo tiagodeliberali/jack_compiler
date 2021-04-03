@@ -47,9 +47,11 @@ impl VmWriter {
         match group {
             "expression" => self.build_expression(tree),
             "term" => self.build_term(tree),
+            "statements" => self.build_statements(tree),
             "letStatement" => self.build_let(tree),
             "returnStatement" => self.build_return(tree),
             "doStatement" => self.build_do(tree),
+            "whileStatement" => self.build_while(tree),
             "expressionList" => self.build_expression_list(tree),
             value => panic!(format!("Unexpected token: {}", value)),
         }
@@ -84,6 +86,11 @@ impl VmWriter {
             "-" => "-",
             "*" => "Math.multiply 2",
             "/" => "Math.divide 2",
+            "&" => "and",
+            "|" => "or",
+            ">" => "gt",
+            "<" => "lt",
+            "=" => "eq",
             v => panic!(format!("Invalid op on expression build: {}", v)),
         };
 
@@ -131,7 +138,30 @@ impl VmWriter {
                     v => panic!(format!("Invalid keywork on term build: {}", v)),
                 }
             }
+            TokenType::Symbol => {
+                let value = item.get_value();
+                match value.as_str() {
+                    "-" => {
+                        let another_term = tree.get_nodes().get(1).unwrap();
+
+                        result.extend(self.build(another_term));
+                        result.push(String::from("neg"))
+                    }
+                    v => panic!(format!("Invalid symbol on term build: {}", v)),
+                }
+            }
             v => panic!(format!("Unexpected term type: {:?}", v)),
+        }
+
+        result
+    }
+
+    fn build_statements(&self, tree: &TokenTreeItem) -> Vec<String> {
+        VmWriter::validate_name(tree, "statements");
+        let mut result = Vec::new();
+
+        for node in tree.get_nodes() {
+            result.extend(self.build(node));
         }
 
         result
@@ -207,6 +237,28 @@ impl VmWriter {
         result.extend(self.build(expression_list));
 
         result.push(format!("call {}.{} {}", class_name, method, arguments));
+
+        result
+    }
+
+    fn build_while(&self, tree: &TokenTreeItem) -> Vec<String> {
+        VmWriter::validate_name(tree, "whileStatement");
+        let mut result = Vec::new();
+        let count = 0;
+
+        result.push(format!("label WHILE_EXP{}", count));
+
+        let expression = tree.get_nodes().get(2).unwrap();
+        result.extend(self.build(expression));
+
+        result.push(String::from("not"));
+        result.push(format!("if-goto WHILE_END{}", count));
+
+        let expression = tree.get_nodes().get(5).unwrap();
+        result.extend(self.build(expression));
+
+        result.push(format!("goto WHILE_EXP{}", count));
+        result.push(format!("label WHILE_END{}", count));
 
         result
     }
@@ -382,5 +434,34 @@ mod tests {
         assert_eq!(code.get(1).unwrap(), "push local 1");
         assert_eq!(code.get(2).unwrap(), "push local 2");
         assert_eq!(code.get(3).unwrap(), "call TestClass.print 3");
+    }
+
+    #[test]
+    fn build_while() {
+        let mut tokenizer = Tokenizer::new("while (x < 10) { let a = -1; }");
+        let tree = Statement::build(&mut tokenizer);
+
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add("argument", "int", "x");
+        symbol_table.add("var", "int", "a");
+
+        let mut writer = VmWriter::new();
+        writer.set_symbol_table(symbol_table);
+        writer.set_class_name(String::from("TestClass"));
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "label WHILE_EXP0");
+        assert_eq!(code.get(1).unwrap(), "push argument 0");
+        assert_eq!(code.get(2).unwrap(), "push constant 10");
+        assert_eq!(code.get(3).unwrap(), "lt");
+        assert_eq!(code.get(4).unwrap(), "not");
+        assert_eq!(code.get(5).unwrap(), "if-goto WHILE_END0");
+
+        assert_eq!(code.get(6).unwrap(), "push constant 1");
+        assert_eq!(code.get(7).unwrap(), "neg");
+        assert_eq!(code.get(8).unwrap(), "pop local 0");
+
+        assert_eq!(code.get(9).unwrap(), "goto WHILE_EXP0");
+        assert_eq!(code.get(10).unwrap(), "label WHILE_END0");
     }
 }
