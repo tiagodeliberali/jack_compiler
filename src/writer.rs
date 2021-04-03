@@ -448,7 +448,8 @@ mod tests {
 
     #[test]
     fn build_while() {
-        let tokenizer = Tokenizer::new("while (x < 10) { let a = -1; }");
+        let tokenizer =
+            Tokenizer::new("while (x < 10) { let a = -1; } while (x < 10) { let a = -1; }");
         let tree = Statement::build(&tokenizer);
 
         let mut symbol_table = SymbolTable::new();
@@ -458,20 +459,25 @@ mod tests {
         let mut writer = VmWriter::new();
         writer.set_symbol_table(symbol_table);
         writer.set_class_name(String::from("TestClass"));
+
+        // advance internal id by 1
+        let current_id = writer.get_next_id();
+        assert_eq!(current_id, 0);
+
         let code: Vec<String> = writer.build(&tree);
 
-        assert_eq!(code.get(0).unwrap(), "label WHILE_EXP0");
+        assert_eq!(code.get(0).unwrap(), "label WHILE_EXP1");
         assert_eq!(code.get(1).unwrap(), "push argument 0");
         assert_eq!(code.get(2).unwrap(), "push constant 10");
         assert_eq!(code.get(3).unwrap(), "lt");
         assert_eq!(code.get(4).unwrap(), "not");
-        assert_eq!(code.get(5).unwrap(), "if-goto WHILE_END0");
+        assert_eq!(code.get(5).unwrap(), "if-goto WHILE_END1");
 
         assert_eq!(code.get(6).unwrap(), "push constant 1");
         assert_eq!(code.get(7).unwrap(), "neg");
         assert_eq!(code.get(8).unwrap(), "pop local 0");
 
-        assert_eq!(code.get(9).unwrap(), "goto WHILE_EXP0");
-        assert_eq!(code.get(10).unwrap(), "label WHILE_END0");
+        assert_eq!(code.get(9).unwrap(), "goto WHILE_EXP1");
+        assert_eq!(code.get(10).unwrap(), "label WHILE_END1");
     }
 }
