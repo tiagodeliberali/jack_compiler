@@ -36,6 +36,7 @@ impl VmWriter {
             "expression" => self.build_expression(tree),
             "term" => self.build_term(tree),
             "letStatement" => self.build_let(tree),
+            "returnStatement" => self.build_return(tree),
             value => panic!(format!("Unexpected token: {}", value)),
         }
     }
@@ -103,6 +104,17 @@ impl VmWriter {
                 let identifier = item.get_value();
                 result.push(self.get_symbol_table().get_push(identifier.as_str()));
             }
+            TokenType::Keyword => {
+                let value = item.get_value();
+                match value.as_str() {
+                    "false" => result.push(String::from("push constant 0")),
+                    "true" => {
+                        result.push(String::from("push constant 0"));
+                        result.push(String::from("not"));
+                    }
+                    v => panic!(format!("Invalid keywork on term build: {}", v)),
+                }
+            }
             v => panic!(format!("Unexpected term type: {:?}", v)),
         }
 
@@ -128,6 +140,20 @@ impl VmWriter {
 
             result.push(self.get_symbol_table().get_pop(identifier.as_str()))
         }
+
+        result
+    }
+
+    fn build_return(&self, tree: &TokenTreeItem) -> Vec<String> {
+        VmWriter::validate_name(tree, "returnStatement");
+        let mut result = Vec::new();
+
+        if tree.get_nodes().len() == 3 {
+            let expression = tree.get_nodes().get(1).unwrap();
+            result.extend(self.build(expression));
+        }
+
+        result.push(String::from("return"));
 
         result
     }
@@ -232,5 +258,29 @@ mod tests {
         assert_eq!(code.get(6).unwrap(), "push constant 97");
         assert_eq!(code.get(7).unwrap(), "call String.appendChar 2");
         assert_eq!(code.get(8).unwrap(), "pop local 0");
+    }
+
+    #[test]
+    fn build_return_false() {
+        let mut tokenizer = Tokenizer::new("return true;");
+        let tree = Statement::build(&mut tokenizer);
+
+        let writer = VmWriter::new();
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "push constant 0");
+        assert_eq!(code.get(1).unwrap(), "not");
+        assert_eq!(code.get(2).unwrap(), "return");
+    }
+
+    #[test]
+    fn build_return_void() {
+        let mut tokenizer = Tokenizer::new("return;");
+        let tree = Statement::build(&mut tokenizer);
+
+        let writer = VmWriter::new();
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "return");
     }
 }
