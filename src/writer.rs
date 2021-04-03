@@ -4,7 +4,7 @@ use crate::{
 };
 use std::cell::Cell;
 
-struct VmWriter {
+pub struct VmWriter {
     symbol_table: Option<SymbolTable>,
     class_name: String,
     current_id: Cell<usize>,
@@ -46,11 +46,10 @@ impl VmWriter {
     }
 
     pub fn build(&self, tree: &TokenTreeItem) -> Vec<String> {
-        let mut result = Vec::new();
         let group = tree.get_name();
 
         if group.is_none() {
-            return result;
+            return Vec::new();
         }
 
         let group = group.as_ref().unwrap().as_str();
@@ -315,7 +314,7 @@ mod tests {
 
     #[test]
     fn build_expression_with_constants() {
-        let mut tokenizer = Tokenizer::new("1 + 4 - 3");
+        let tokenizer = Tokenizer::new("1 + 4 - 3");
         let tree = Expression::build(&tokenizer);
 
         let writer = VmWriter::new();
@@ -330,7 +329,7 @@ mod tests {
 
     #[test]
     fn build_let_with_constants() {
-        let mut tokenizer = Tokenizer::new("let x = 2 + 2;");
+        let tokenizer = Tokenizer::new("let x = 2 + 2;");
 
         let mut symbol_table = SymbolTable::new();
         symbol_table.add("var", "int", "x");
@@ -349,7 +348,7 @@ mod tests {
 
     #[test]
     fn build_let_with_constants_both_sides() {
-        let mut tokenizer = Tokenizer::new("let x = x + 2;");
+        let tokenizer = Tokenizer::new("let x = x + 2;");
 
         let mut symbol_table = SymbolTable::new();
         symbol_table.add("var", "int", "x");
@@ -368,7 +367,7 @@ mod tests {
 
     #[test]
     fn build_let_with_string() {
-        let mut tokenizer = Tokenizer::new("let name = \"Ola\";");
+        let tokenizer = Tokenizer::new("let name = \"Ola\";");
 
         let mut symbol_table = SymbolTable::new();
         symbol_table.add("var", "String", "name");
@@ -392,7 +391,7 @@ mod tests {
 
     #[test]
     fn build_return_false() {
-        let mut tokenizer = Tokenizer::new("return true;");
+        let tokenizer = Tokenizer::new("return true;");
         let tree = Statement::build(&tokenizer);
 
         let writer = VmWriter::new();
@@ -405,7 +404,7 @@ mod tests {
 
     #[test]
     fn build_return_void() {
-        let mut tokenizer = Tokenizer::new("return;");
+        let tokenizer = Tokenizer::new("return;");
         let tree = Statement::build(&tokenizer);
 
         let writer = VmWriter::new();
@@ -416,7 +415,7 @@ mod tests {
 
     #[test]
     fn build_do_this() {
-        let mut tokenizer = Tokenizer::new("do Memory.deAlloc(this);");
+        let tokenizer = Tokenizer::new("do Memory.deAlloc(this);");
         let tree = Statement::build(&tokenizer);
 
         let writer = VmWriter::new();
@@ -428,7 +427,7 @@ mod tests {
 
     #[test]
     fn build_do_with_args() {
-        let mut tokenizer = Tokenizer::new("do print(name, age, country);");
+        let tokenizer = Tokenizer::new("do print(name, age, country);");
         let tree = Statement::build(&tokenizer);
 
         let mut symbol_table = SymbolTable::new();
@@ -449,7 +448,7 @@ mod tests {
 
     #[test]
     fn build_while() {
-        let mut tokenizer = Tokenizer::new("while (x < 10) { let a = -1; }");
+        let tokenizer = Tokenizer::new("while (x < 10) { let a = -1; }");
         let tree = Statement::build(&tokenizer);
 
         let mut symbol_table = SymbolTable::new();

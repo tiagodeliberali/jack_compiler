@@ -771,7 +771,7 @@ mod tests {
 
     //     #[test]
     //     fn build_term_integer() {
-    //         let mut tokenizer = Tokenizer::new("123");
+    //         let tokenizer = Tokenizer::new("123");
 
     //         let result = Term::build(&tokenizer);
 
@@ -781,7 +781,7 @@ mod tests {
 
     //     #[test]
     //     fn build_term_string() {
-    //         let mut tokenizer = Tokenizer::new("\"test string\"");
+    //         let tokenizer = Tokenizer::new("\"test string\"");
 
     //         let result = Term::build(&tokenizer);
 
@@ -791,7 +791,7 @@ mod tests {
 
     //     #[test]
     //     fn build_term_keyword() {
-    //         let mut tokenizer = Tokenizer::new("this");
+    //         let tokenizer = Tokenizer::new("this");
 
     //         let result = Term::build(&tokenizer);
 
@@ -801,7 +801,7 @@ mod tests {
 
     //     #[test]
     //     fn build_term_var_name() {
-    //         let mut tokenizer = Tokenizer::new("color");
+    //         let tokenizer = Tokenizer::new("color");
 
     //         let result = Term::build(&tokenizer);
 
@@ -811,7 +811,7 @@ mod tests {
 
     //     #[test]
     //     fn build_term_array() {
-    //         let mut tokenizer = Tokenizer::new("position[10]");
+    //         let tokenizer = Tokenizer::new("position[10]");
 
     //         let result = Term::build(&tokenizer);
 
@@ -824,7 +824,7 @@ mod tests {
 
     //     #[test]
     //     fn build_term_subroutine() {
-    //         let mut tokenizer = Tokenizer::new("print(\"my name\", 10)");
+    //         let tokenizer = Tokenizer::new("print(\"my name\", 10)");
 
     //         let result = Term::build(&tokenizer);
 
@@ -843,7 +843,7 @@ mod tests {
 
     //     #[test]
     //     fn build_term_subroutine_with_class() {
-    //         let mut tokenizer = Tokenizer::new("Console.write()");
+    //         let tokenizer = Tokenizer::new("Console.write()");
 
     //         let result = Term::build(&tokenizer);
 
@@ -861,7 +861,7 @@ mod tests {
 
     //     #[test]
     //     fn build_symbol_with_expression() {
-    //         let mut tokenizer = Tokenizer::new("(x + 2)");
+    //         let tokenizer = Tokenizer::new("(x + 2)");
 
     //         let result = Term::build(&tokenizer);
 
@@ -880,7 +880,7 @@ mod tests {
 
     //     #[test]
     //     fn build_symbol_with_unary() {
-    //         let mut tokenizer = Tokenizer::new("-x");
+    //         let tokenizer = Tokenizer::new("-x");
 
     //         let result = Term::build(&tokenizer);
 
@@ -891,7 +891,7 @@ mod tests {
 
     //     #[test]
     //     fn build_statement_list_return_expression() {
-    //         let mut tokenizer = Tokenizer::new("return name;");
+    //         let tokenizer = Tokenizer::new("return name;");
 
     //         let statements = Statement::build_list(&tokenizer);
 
@@ -913,7 +913,7 @@ mod tests {
 
     //     #[test]
     //     fn build_statement_list_return() {
-    //         let mut tokenizer = Tokenizer::new("return;");
+    //         let tokenizer = Tokenizer::new("return;");
 
     //         let statements = Statement::build_list(&tokenizer);
 
@@ -934,7 +934,7 @@ mod tests {
 
     //     #[test]
     //     fn build_statement_list_do() {
-    //         let mut tokenizer = Tokenizer::new("do Console.print(test);");
+    //         let tokenizer = Tokenizer::new("do Console.print(test);");
 
     //         let statements = Statement::build_list(&tokenizer);
 
@@ -951,7 +951,7 @@ mod tests {
 
     //     #[test]
     //     fn build_statement_list_while() {
-    //         let mut tokenizer = Tokenizer::new("while (x < 5) { do Console.print(test); }");
+    //         let tokenizer = Tokenizer::new("while (x < 5) { do Console.print(test); }");
 
     //         let statements = Statement::build_list(&tokenizer);
 
@@ -972,7 +972,7 @@ mod tests {
 
     //     #[test]
     //     fn build_statement_list_if() {
-    //         let mut tokenizer = Tokenizer::new("if (x < 5) { return 10; }");
+    //         let tokenizer = Tokenizer::new("if (x < 5) { return 10; }");
 
     //         let statements = Statement::build_list(&tokenizer);
 
@@ -994,7 +994,7 @@ mod tests {
 
     //     #[test]
     //     fn build_statement_list_if_else() {
-    //         let mut tokenizer = Tokenizer::new("if (x < 5) { return 10; } else { return 20; }");
+    //         let tokenizer = Tokenizer::new("if (x < 5) { return 10; } else { return 20; }");
 
     //         let statements = Statement::build_list(&tokenizer);
 
@@ -1019,7 +1019,7 @@ mod tests {
 
     //     #[test]
     //     fn build_statement_list_let() {
-    //         let mut tokenizer = Tokenizer::new("let x = 25;");
+    //         let tokenizer = Tokenizer::new("let x = 25;");
 
     //         let statements = Statement::build_list(&tokenizer);
 
@@ -1039,7 +1039,7 @@ mod tests {
 
     //     #[test]
     //     fn build_statement_list_let_array() {
-    //         let mut tokenizer = Tokenizer::new("let names[10] = \"test\";");
+    //         let tokenizer = Tokenizer::new("let names[10] = \"test\";");
 
     //         let statements = Statement::build_list(&tokenizer);
 
@@ -1062,7 +1062,7 @@ mod tests {
 
     //     #[test]
     //     fn build_subroutine_dec_list_string_function() {
-    //         let mut tokenizer = Tokenizer::new("function String print() {}");
+    //         let tokenizer = Tokenizer::new("function String print() {}");
 
     //         let result = SubroutineDec::build(&tokenizer);
 
@@ -1077,7 +1077,7 @@ mod tests {
 
     //     #[test]
     //     fn build_subroutine_dec_list_multiple_items() {
-    //         let mut tokenizer = Tokenizer::new("method void test() {} function String print() {}");
+    //         let tokenizer = Tokenizer::new("method void test() {} function String print() {}");
 
     //         let result = SubroutineDec::build(&tokenizer);
 
@@ -1086,7 +1086,7 @@ mod tests {
 
     //     #[test]
     //     fn build_subroutine_dec_list_void_method() {
-    //         let mut tokenizer = Tokenizer::new("method void test(int x, String name) {var int y; let y = x + 1; do print(y, name); return;}");
+    //         let tokenizer = Tokenizer::new("method void test(int x, String name) {var int y; let y = x + 1; do print(y, name); return;}");
 
     //         let result = SubroutineDec::build(&tokenizer);
 

@@ -11,6 +11,7 @@ use crate::builder::build_content;
 use crate::debug::{debug_parsed_tree, debug_tokenizer};
 use crate::parser::ClassNode;
 use crate::tokenizer::Tokenizer;
+use crate::writer::VmWriter;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -51,4 +52,10 @@ fn parse_file(filename: &str, debug: &bool) {
     if *debug {
         debug_parsed_tree(&filename, &root);
     }
+
+    let writer = VmWriter::new();
+    let code: Vec<String> = writer.build(&root);
+
+    fs::write(filename.replace(".jack", ".vm"), code.join("\r\n"))
+        .expect("Something failed on write file to disk");
 }
