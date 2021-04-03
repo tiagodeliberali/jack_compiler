@@ -92,8 +92,8 @@ impl VmWriter {
 
     fn build_expression_op(op: &TokenTreeItem) -> String {
         let result = match op.get_item().as_ref().unwrap().get_value().as_str() {
-            "+" => "+",
-            "-" => "-",
+            "+" => "add",
+            "-" => "sub",
             "*" => "Math.multiply 2",
             "/" => "Math.divide 2",
             "&" => "and",
@@ -206,6 +206,32 @@ impl VmWriter {
                 .get_value();
 
             result.push(self.get_symbol_table().get_pop(identifier.as_str()))
+        } else if tree.get_nodes().len() == 8 {
+            let identifier = tree
+                .get_nodes()
+                .get(1)
+                .unwrap()
+                .get_item()
+                .as_ref()
+                .unwrap()
+                .get_value();
+
+            result.push(self.get_symbol_table().get_push(identifier.as_str()));
+
+            let expression = tree.get_nodes().get(3).unwrap();
+            result.extend(self.build(expression));
+
+            result.push(String::from("add"));
+
+            let expression = tree.get_nodes().get(6).unwrap();
+            result.extend(self.build(expression));
+
+            result.push(String::from("pop temp 0"));
+            result.push(String::from("pop pointer 1"));
+            result.push(String::from("push temp 0"));
+            result.push(String::from("pop that 0"));
+        } else {
+            panic!("Invalid number of arguments on build let statement");
         }
 
         result
@@ -333,9 +359,9 @@ mod tests {
 
         assert_eq!(code.get(0).unwrap(), "push constant 1");
         assert_eq!(code.get(1).unwrap(), "push constant 4");
-        assert_eq!(code.get(2).unwrap(), "+");
+        assert_eq!(code.get(2).unwrap(), "add");
         assert_eq!(code.get(3).unwrap(), "push constant 3");
-        assert_eq!(code.get(4).unwrap(), "-");
+        assert_eq!(code.get(4).unwrap(), "sub");
     }
 
     #[test]
@@ -350,7 +376,34 @@ mod tests {
         assert_eq!(code.get(1).unwrap(), "push constant 4");
         assert_eq!(code.get(2).unwrap(), "push constant 3");
         assert_eq!(code.get(3).unwrap(), "Math.multiply 2");
-        assert_eq!(code.get(4).unwrap(), "+");
+        assert_eq!(code.get(4).unwrap(), "add");
+    }
+
+    #[test]
+    fn build_let_with_array() {
+        let tokenizer = Tokenizer::new("let a[x + 1] = 5;");
+        let tree = Statement::build(&tokenizer);
+
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add("var", "int", "x");
+        symbol_table.add("var", "Array", "a");
+
+        let mut writer = VmWriter::new();
+        writer.set_symbol_table(symbol_table);
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "push local 1");
+        assert_eq!(code.get(1).unwrap(), "push local 0");
+        assert_eq!(code.get(2).unwrap(), "push constant 1");
+        assert_eq!(code.get(3).unwrap(), "add");
+        assert_eq!(code.get(4).unwrap(), "add");
+
+        assert_eq!(code.get(5).unwrap(), "push constant 5");
+
+        assert_eq!(code.get(6).unwrap(), "pop temp 0");
+        assert_eq!(code.get(7).unwrap(), "pop pointer 1");
+        assert_eq!(code.get(8).unwrap(), "push temp 0");
+        assert_eq!(code.get(9).unwrap(), "pop that 0");
     }
 
     #[test]
@@ -368,7 +421,7 @@ mod tests {
 
         assert_eq!(code.get(0).unwrap(), "push constant 2");
         assert_eq!(code.get(1).unwrap(), "push constant 2");
-        assert_eq!(code.get(2).unwrap(), "+");
+        assert_eq!(code.get(2).unwrap(), "add");
         assert_eq!(code.get(3).unwrap(), "pop local 0");
     }
 
@@ -387,7 +440,7 @@ mod tests {
 
         assert_eq!(code.get(0).unwrap(), "push local 0");
         assert_eq!(code.get(1).unwrap(), "push constant 2");
-        assert_eq!(code.get(2).unwrap(), "+");
+        assert_eq!(code.get(2).unwrap(), "add");
         assert_eq!(code.get(3).unwrap(), "pop local 0");
     }
 
