@@ -26,7 +26,7 @@ impl VmWriter {
             .expect("Try to get symbol table before set it")
     }
 
-    pub fn set_symbol_table(&mut self, symbol_table: SymbolTable) {
+    fn set_symbol_table(&mut self, symbol_table: SymbolTable) {
         self.symbol_table.replace(symbol_table);
     }
 
@@ -34,7 +34,7 @@ impl VmWriter {
         &self.class_name
     }
 
-    pub fn set_class_name(&mut self, value: String) {
+    fn set_class_name(&mut self, value: String) {
         self.class_name = value;
     }
 
@@ -448,8 +448,7 @@ mod tests {
 
     #[test]
     fn build_while() {
-        let tokenizer =
-            Tokenizer::new("while (x < 10) { let a = -1; } while (x < 10) { let a = -1; }");
+        let tokenizer = Tokenizer::new("while (x < 10) { let a = -1; }");
         let tree = Statement::build(&tokenizer);
 
         let mut symbol_table = SymbolTable::new();

@@ -165,7 +165,7 @@ impl SymbolTable {
         self.indexes.insert(String::from(name), id);
     }
 
-    pub fn get(&self, name: &str) -> &SymbolItem {
+    fn get(&self, name: &str) -> &SymbolItem {
         let index = self
             .indexes
             .get(name)
