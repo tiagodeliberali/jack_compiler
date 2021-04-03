@@ -134,6 +134,14 @@ impl VmWriter {
             TokenType::Identifier => {
                 let identifier = item.get_value();
                 result.push(self.get_symbol_table().get_push(identifier.as_str()));
+
+                if tree.get_nodes().len() == 4 {
+                    let another_term = tree.get_nodes().get(2).unwrap();
+                    result.extend(self.build(another_term));
+                    result.push(String::from("add"));
+                    result.push(String::from("pop pointer 1"));
+                    result.push(String::from("push that 0"));
+                }
             }
             TokenType::Keyword => {
                 let value = item.get_value();
@@ -153,13 +161,11 @@ impl VmWriter {
                 match value.as_str() {
                     "-" => {
                         let another_term = tree.get_nodes().get(1).unwrap();
-
                         result.extend(self.build(another_term));
                         result.push(String::from("neg"))
                     }
                     "~" => {
                         let another_term = tree.get_nodes().get(1).unwrap();
-
                         result.extend(self.build(another_term));
                         result.push(String::from("not"))
                     }
@@ -404,6 +410,35 @@ mod tests {
         assert_eq!(code.get(7).unwrap(), "pop pointer 1");
         assert_eq!(code.get(8).unwrap(), "push temp 0");
         assert_eq!(code.get(9).unwrap(), "pop that 0");
+    }
+
+    #[test]
+    fn build_let_with_two_arrays() {
+        let tokenizer = Tokenizer::new("let a[x] = a[5];");
+        let tree = Statement::build(&tokenizer);
+
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add("var", "int", "x");
+        symbol_table.add("var", "Array", "a");
+
+        let mut writer = VmWriter::new();
+        writer.set_symbol_table(symbol_table);
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "push local 1");
+        assert_eq!(code.get(1).unwrap(), "push local 0");
+        assert_eq!(code.get(2).unwrap(), "add");
+
+        assert_eq!(code.get(3).unwrap(), "push local 1");
+        assert_eq!(code.get(4).unwrap(), "push constant 5");
+        assert_eq!(code.get(5).unwrap(), "add");
+        assert_eq!(code.get(6).unwrap(), "pop pointer 1");
+        assert_eq!(code.get(7).unwrap(), "push that 0");
+
+        assert_eq!(code.get(8).unwrap(), "pop temp 0");
+        assert_eq!(code.get(9).unwrap(), "pop pointer 1");
+        assert_eq!(code.get(10).unwrap(), "push temp 0");
+        assert_eq!(code.get(11).unwrap(), "pop that 0");
     }
 
     #[test]
