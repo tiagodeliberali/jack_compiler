@@ -497,7 +497,7 @@ impl Statement {
     }
 }
 
-struct Expression {}
+pub struct Expression {}
 
 impl Expression {
     pub fn build(tokenizer: &mut Tokenizer) -> TokenTreeItem {

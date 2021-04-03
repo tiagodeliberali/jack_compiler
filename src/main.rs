@@ -5,6 +5,7 @@ mod builder;
 mod debug;
 mod parser;
 mod tokenizer;
+mod writer;
 
 use crate::builder::build_content;
 use crate::debug::{debug_parsed_tree, debug_tokenizer};
