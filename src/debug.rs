@@ -1,34 +1,68 @@
-use crate::parser::ClassNode;
+use crate::parser::*;
 use crate::tokenizer::{TokenType, Tokenizer};
 use std::fs;
 
-pub fn debug_tokenizer(filename: &str, tokenizer: &mut Tokenizer) {
+pub fn debug_tokenizer(filename: &str, tokenizer: &Tokenizer) {
     let printable_tokens = print_tokens(tokenizer);
 
     fs::write(
-        filename.replace(".jack", "T2.xml"),
+        filename.replace(".jack", "T.xml"),
         printable_tokens.join("\r\n"),
     )
     .expect("Something failed on write file to disk");
 }
 
-pub fn debug_parsed_tree(filename: &str, root_node: &ClassNode) {
+pub fn debug_parsed_tree(filename: &str, root: &TokenTreeItem) {
     let mut result: Vec<String> = Vec::new();
 
-    result.push(String::from("<class>"));
-    result.push(String::from("<keyword> class </keyword>"));
-    result.push(format!(
-        "<identifier> {} </identifier>",
-        root_node.get_identifier()
-    ));
-    result.push(String::from("<symbol> { </symbol>"));
-    result.push(String::from("</class>"));
+    result.extend(debug_token_item(root));
+    result.push(String::new());
 
-    fs::write(filename.replace(".jack", "2.xml"), result.join("\r\n"))
+    fs::write(filename.replace(".jack", ".xml"), result.join("\r\n"))
         .expect("Something failed on write file to disk");
 }
 
-fn print_tokens(tokenizer: &mut Tokenizer) -> Vec<String> {
+fn debug_token_item(item: &TokenTreeItem) -> Vec<String> {
+    let mut result: Vec<String> = Vec::new();
+
+    if let Some(name) = &item.get_name() {
+        result.push(format!("<{}>", name));
+    }
+
+    if let Some(item) = &item.get_item() {
+        result.push(format!(
+            "<{}> {} </{}>",
+            enum_to_str(item.get_type()),
+            parse_symbol(&item.get_value().as_str()),
+            enum_to_str(item.get_type())
+        ));
+    }
+
+    for node in item.get_nodes() {
+        result.extend(debug_token_item(&node));
+    }
+
+    if let Some(name) = &item.get_name() {
+        result.push(format!("</{}>", name));
+    }
+
+    result
+}
+
+fn enum_to_str(value: TokenType) -> String {
+    let result = match value {
+        TokenType::Identifier => "identifier",
+        TokenType::Integer => "integerConstant",
+        TokenType::Keyword => "keyword",
+        TokenType::None => "ERROR!",
+        TokenType::String => "stringConstant",
+        TokenType::Symbol => "symbol",
+    };
+
+    String::from(result)
+}
+
+fn print_tokens(tokenizer: &Tokenizer) -> Vec<String> {
     let mut result: Vec<String> = Vec::new();
     result.push(String::from("<tokens>"));
 

@@ -5,18 +5,22 @@ mod builder;
 mod debug;
 mod parser;
 mod tokenizer;
+mod writer;
 
 use crate::builder::build_content;
 use crate::debug::{debug_parsed_tree, debug_tokenizer};
 use crate::parser::ClassNode;
 use crate::tokenizer::Tokenizer;
+use crate::writer::VmWriter;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let path = args.get(1).expect("Please supply a folder or file name");
 
+    let debug = args.get(2).is_some();
+
     if path.ends_with(".jack") {
-        parse_file(&path);
+        parse_file(&path, &debug);
     } else {
         let file_list = fs::read_dir(path).unwrap();
 
@@ -26,22 +30,32 @@ fn main() {
             let file_name = Path::new(file_path).file_name().unwrap().to_str().unwrap();
 
             if file_name.ends_with(".jack") {
-                parse_file(&file_path);
+                parse_file(&file_path, &debug);
             }
         }
     }
 }
 
-fn parse_file(filename: &str) {
+fn parse_file(filename: &str, debug: &bool) {
     let content = fs::read_to_string(filename).expect("Something went wrong reading the file");
 
     let clean_code = build_content(content);
 
-    let mut tokenizer = Tokenizer::new(&clean_code);
+    let tokenizer = Tokenizer::new(&clean_code);
 
-    debug_tokenizer(filename, &mut tokenizer);
+    if *debug {
+        debug_tokenizer(filename, &tokenizer);
+    }
 
-    let root = ClassNode::build(&mut tokenizer);
+    let root = ClassNode::build(&tokenizer);
 
-    debug_parsed_tree(&filename, &root);
+    if *debug {
+        debug_parsed_tree(&filename, &root);
+    }
+
+    let writer = VmWriter::new();
+    let code: Vec<String> = writer.build(&root);
+
+    fs::write(filename.replace(".jack", ".vm"), code.join("\r\n"))
+        .expect("Something failed on write file to disk");
 }

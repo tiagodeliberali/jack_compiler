@@ -19,7 +19,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["/home/tiagosantos/coursera/build-a-computer/projects/10/ArrayTest"],
+            "args": ["/home/tiagosantos/coursera/build-a-computer/projects/10/Square"],
             "cwd": "${workspaceFolder}"
         },
         {
