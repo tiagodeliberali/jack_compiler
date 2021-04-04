@@ -62,6 +62,7 @@ impl VmWriter {
             "returnStatement" => self.build_return(tree),
             "doStatement" => self.build_do(tree),
             "whileStatement" => self.build_while(tree),
+            "ifStatement" => self.build_if(tree),
             "expressionList" => self.build_expression_list(tree),
             value => panic!(format!("Unexpected token: {}", value)),
         }
@@ -290,6 +291,7 @@ impl VmWriter {
         result.extend(self.build(expression_list));
 
         result.push(format!("call {}.{} {}", class_name, method, arguments));
+        result.push(String::from("pop temp 0"));
 
         result
     }
@@ -312,6 +314,36 @@ impl VmWriter {
 
         result.push(format!("goto WHILE_EXP{}", count));
         result.push(format!("label WHILE_END{}", count));
+
+        result
+    }
+
+    fn build_if(&self, tree: &TokenTreeItem) -> Vec<String> {
+        VmWriter::validate_name(tree, "ifStatement");
+        let mut result = Vec::new();
+        let count = self.get_next_id();
+
+        let expression = tree.get_nodes().get(2).unwrap();
+        result.extend(self.build(expression));
+
+        result.push(format!("if-goto IF_TRUE{}", count));
+        result.push(format!("goto IF_FALSE{}", count));
+        result.push(format!("label IF_TRUE{}", count));
+
+        let expression = tree.get_nodes().get(5).unwrap();
+        result.extend(self.build(expression));
+
+        if tree.get_nodes().len() == 7 {
+            result.push(format!("label IF_FALSE{}", count));
+        } else {
+            result.push(format!("goto IF_END{}", count));
+            result.push(format!("label IF_FALSE{}", count));
+
+            let expression = tree.get_nodes().get(9).unwrap();
+            result.extend(self.build(expression));
+
+            result.push(format!("label IF_END{}", count));
+        }
 
         result
     }
@@ -537,6 +569,7 @@ mod tests {
 
         assert_eq!(code.get(0).unwrap(), "push pointer 0");
         assert_eq!(code.get(1).unwrap(), "call Memory.deAlloc 1");
+        assert_eq!(code.get(2).unwrap(), "pop temp 0");
     }
 
     #[test]
@@ -558,6 +591,7 @@ mod tests {
         assert_eq!(code.get(1).unwrap(), "push local 1");
         assert_eq!(code.get(2).unwrap(), "push local 2");
         assert_eq!(code.get(3).unwrap(), "call TestClass.print 3");
+        assert_eq!(code.get(4).unwrap(), "pop temp 0");
     }
 
     #[test]
@@ -592,5 +626,75 @@ mod tests {
 
         assert_eq!(code.get(9).unwrap(), "goto WHILE_EXP1");
         assert_eq!(code.get(10).unwrap(), "label WHILE_END1");
+    }
+
+    #[test]
+    fn build_if() {
+        let tokenizer = Tokenizer::new("if (~exit) { do print(10); }");
+        let tree = Statement::build(&tokenizer);
+
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add("var", "boolean", "exit");
+
+        let mut writer = VmWriter::new();
+        writer.set_symbol_table(symbol_table);
+        writer.set_class_name(String::from("TestClass"));
+
+        // advance internal id by 1
+        let current_id = writer.get_next_id();
+        assert_eq!(current_id, 0);
+
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "push local 0");
+        assert_eq!(code.get(1).unwrap(), "not");
+
+        assert_eq!(code.get(2).unwrap(), "if-goto IF_TRUE1");
+        assert_eq!(code.get(3).unwrap(), "goto IF_FALSE1");
+        assert_eq!(code.get(4).unwrap(), "label IF_TRUE1");
+
+        assert_eq!(code.get(5).unwrap(), "push constant 10");
+        assert_eq!(code.get(6).unwrap(), "call TestClass.print 1");
+        assert_eq!(code.get(7).unwrap(), "pop temp 0");
+
+        assert_eq!(code.get(8).unwrap(), "label IF_FALSE1");
+    }
+
+    #[test]
+    fn build_if_else() {
+        let tokenizer = Tokenizer::new("if (~exit) { do print(10); } else { do exit(); }");
+        let tree = Statement::build(&tokenizer);
+
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add("var", "boolean", "exit");
+
+        let mut writer = VmWriter::new();
+        writer.set_symbol_table(symbol_table);
+        writer.set_class_name(String::from("TestClass"));
+
+        // advance internal id by 1
+        let current_id = writer.get_next_id();
+        assert_eq!(current_id, 0);
+
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "push local 0");
+        assert_eq!(code.get(1).unwrap(), "not");
+
+        assert_eq!(code.get(2).unwrap(), "if-goto IF_TRUE1");
+        assert_eq!(code.get(3).unwrap(), "goto IF_FALSE1");
+        assert_eq!(code.get(4).unwrap(), "label IF_TRUE1");
+
+        assert_eq!(code.get(5).unwrap(), "push constant 10");
+        assert_eq!(code.get(6).unwrap(), "call TestClass.print 1");
+        assert_eq!(code.get(7).unwrap(), "pop temp 0");
+
+        assert_eq!(code.get(8).unwrap(), "goto IF_END1");
+        assert_eq!(code.get(9).unwrap(), "label IF_FALSE1");
+
+        assert_eq!(code.get(10).unwrap(), "call TestClass.exit 0");
+        assert_eq!(code.get(11).unwrap(), "pop temp 0");
+
+        assert_eq!(code.get(12).unwrap(), "label IF_END1");
     }
 }
