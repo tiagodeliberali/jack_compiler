@@ -53,7 +53,7 @@ fn parse_file(filename: &str, debug: &bool) {
         debug_parsed_tree(&filename, &root);
     }
 
-    let writer = VmWriter::new();
+    let mut writer = VmWriter::new();
     let code: Vec<String> = writer.build(&root);
 
     fs::write(filename.replace(".jack", ".vm"), code.join("\r\n"))

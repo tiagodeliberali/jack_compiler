@@ -2,32 +2,38 @@ use crate::{
     parser::{SymbolTable, TokenTreeItem},
     tokenizer::TokenType,
 };
-use std::cell::Cell;
 
 pub struct VmWriter {
-    symbol_table: Option<SymbolTable>,
+    class_symbol_table: SymbolTable,
+    symbol_table: SymbolTable,
     class_name: String,
-    current_id: Cell<usize>,
+    current_id: usize,
 }
 
 impl VmWriter {
     pub fn new() -> VmWriter {
         VmWriter {
-            symbol_table: None,
+            class_symbol_table: SymbolTable::new(),
+            symbol_table: SymbolTable::new(),
             class_name: String::new(),
-            current_id: Cell::new(0),
+            current_id: 0,
         }
     }
 
+    pub fn get_class_symbol_table(&self) -> &SymbolTable {
+        &self.class_symbol_table
+    }
+
+    fn set_class_symbol_table(&mut self, symbol_table: SymbolTable) {
+        self.class_symbol_table = symbol_table;
+    }
+
     pub fn get_symbol_table(&self) -> &SymbolTable {
-        &self
-            .symbol_table
-            .as_ref()
-            .expect("Try to get symbol table before set it")
+        &self.symbol_table
     }
 
     fn set_symbol_table(&mut self, symbol_table: SymbolTable) {
-        self.symbol_table.replace(symbol_table);
+        self.symbol_table = symbol_table;
     }
 
     pub fn get_class_name(&self) -> &String {
@@ -38,14 +44,14 @@ impl VmWriter {
         self.class_name = value;
     }
 
-    pub fn get_next_id(&self) -> usize {
-        let id = self.current_id.get();
-        self.current_id.set(id + 1);
+    pub fn get_next_id(&mut self) -> usize {
+        let id = self.current_id;
+        self.current_id = id + 1;
 
         id
     }
 
-    pub fn build(&self, tree: &TokenTreeItem) -> Vec<String> {
+    pub fn build(&mut self, tree: &TokenTreeItem) -> Vec<String> {
         let group = tree.get_name();
 
         if group.is_none() {
@@ -64,11 +70,286 @@ impl VmWriter {
             "whileStatement" => self.build_while(tree),
             "ifStatement" => self.build_if(tree),
             "expressionList" => self.build_expression_list(tree),
+            "class" => self.build_class(tree),
+            "classVarDec" => {
+                let symbol_table = self.build_class_var_dec(tree);
+                self.set_class_symbol_table(symbol_table);
+                Vec::new()
+            }
+            "subroutineDec" => self.build_subroutine_dec(tree),
+            "parameterList" => {
+                let symbol_table = self.get_class_symbol_table();
+                let symbol_table = self.build_parameter_list(tree, symbol_table);
+
+                self.set_symbol_table(symbol_table);
+
+                Vec::new()
+            }
+            "varDec" => {
+                let symbol_table = self.get_symbol_table();
+                let symbol_table = self.build_var_dec(tree, symbol_table);
+
+                self.set_symbol_table(symbol_table);
+
+                Vec::new()
+            }
+            "subroutineBody" => self.build_subroutine_body(tree),
             value => panic!(format!("Unexpected token: {}", value)),
         }
     }
 
-    fn build_expression(&self, tree: &TokenTreeItem) -> Vec<String> {
+    fn build_class(&mut self, tree: &TokenTreeItem) -> Vec<String> {
+        VmWriter::validate_name(tree, "class");
+
+        if tree.get_nodes().len() <= 4 {
+            return Vec::new();
+        }
+
+        let mut result = Vec::new();
+
+        let class_name = tree
+            .get_nodes()
+            .get(1)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+        self.set_class_name(class_name);
+
+        let item = tree.get_nodes().get(3).unwrap();
+        result.extend(self.build(item));
+
+        if tree.get_nodes().len() > 5 {
+            let item = tree.get_nodes().get(4).unwrap();
+            result.extend(self.build(item));
+        }
+
+        result
+    }
+
+    fn build_subroutine_dec(&mut self, tree: &TokenTreeItem) -> Vec<String> {
+        VmWriter::validate_name(tree, "subroutineDec");
+
+        let mut result = Vec::new();
+
+        let routine_type = tree
+            .get_nodes()
+            .get(0)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+
+        let name = tree
+            .get_nodes()
+            .get(2)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+        let arguments = tree.get_nodes().get(4).unwrap();
+        let count_arguments = (arguments.get_nodes().len() + 1) / 3;
+        let body = tree.get_nodes().get(6).unwrap();
+
+        result.push(format!(
+            "function {}.{} {}",
+            self.get_class_name(),
+            name,
+            count_arguments
+        ));
+
+        match routine_type.as_str() {
+            "constructor" => {
+                result.push(format!(
+                    "push constant {}",
+                    self.get_class_symbol_table().count_fields()
+                ));
+                result.push(String::from("call Memory.alloc 1"));
+                result.push(String::from("pop pointer 0"));
+            }
+            "function" => {}
+            "method" => {
+                result.push(String::from("push argument 0"));
+                result.push(String::from("pop pointer 0"));
+            }
+            v => panic!(format!("Invalid routine type: {}", v)),
+        }
+
+        result.extend(self.build(arguments));
+        result.extend(self.build(body));
+
+        result
+    }
+
+    fn build_subroutine_body(&mut self, tree: &TokenTreeItem) -> Vec<String> {
+        VmWriter::validate_name(tree, "subroutineBody");
+
+        let mut result = Vec::new();
+
+        if tree.get_nodes().len() > 2 {
+            let item = tree.get_nodes().get(1).unwrap();
+            result.extend(self.build(item));
+        }
+
+        if tree.get_nodes().len() > 3 {
+            let item = tree.get_nodes().get(2).unwrap();
+            result.extend(self.build(item));
+        }
+
+        result
+    }
+    fn build_class_var_dec(&mut self, tree: &TokenTreeItem) -> SymbolTable {
+        VmWriter::validate_name(tree, "classVarDec");
+
+        let mut symbol_table = SymbolTable::new();
+
+        let symbol_type = tree
+            .get_nodes()
+            .get(0)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+        let kind = tree
+            .get_nodes()
+            .get(1)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+        let name = tree
+            .get_nodes()
+            .get(2)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+
+        symbol_table.add(symbol_type.as_str(), kind.as_str(), name.as_str());
+
+        let mut position = 4;
+
+        while position < tree.get_nodes().len() {
+            let name = tree
+                .get_nodes()
+                .get(position)
+                .unwrap()
+                .get_item()
+                .as_ref()
+                .unwrap()
+                .get_value();
+            symbol_table.add(symbol_type.as_str(), kind.as_str(), name.as_str());
+            position += 2;
+        }
+
+        symbol_table
+    }
+
+    fn build_parameter_list(
+        &self,
+        tree: &TokenTreeItem,
+        symbol_table: &SymbolTable,
+    ) -> SymbolTable {
+        VmWriter::validate_name(tree, "parameterList");
+
+        let mut symbol_table = symbol_table.clone();
+
+        let symbol_type = "argument";
+        let kind = tree
+            .get_nodes()
+            .get(0)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+        let name = tree
+            .get_nodes()
+            .get(1)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+
+        symbol_table.add(symbol_type, kind.as_str(), name.as_str());
+
+        let mut position = 3;
+
+        while position < tree.get_nodes().len() {
+            let kind = tree
+                .get_nodes()
+                .get(position)
+                .unwrap()
+                .get_item()
+                .as_ref()
+                .unwrap()
+                .get_value();
+            let name = tree
+                .get_nodes()
+                .get(position + 1)
+                .unwrap()
+                .get_item()
+                .as_ref()
+                .unwrap()
+                .get_value();
+            symbol_table.add(symbol_type, kind.as_str(), name.as_str());
+            position += 3;
+        }
+
+        symbol_table
+    }
+
+    fn build_var_dec(&self, tree: &TokenTreeItem, symbol_table: &SymbolTable) -> SymbolTable {
+        VmWriter::validate_name(tree, "varDec");
+
+        let mut symbol_table = symbol_table.clone();
+
+        let symbol_type = "var";
+        let kind = tree
+            .get_nodes()
+            .get(1)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+        let name = tree
+            .get_nodes()
+            .get(2)
+            .unwrap()
+            .get_item()
+            .as_ref()
+            .unwrap()
+            .get_value();
+
+        symbol_table.add(symbol_type, kind.as_str(), name.as_str());
+
+        let mut position = 4;
+
+        while position < tree.get_nodes().len() {
+            let name = tree
+                .get_nodes()
+                .get(position)
+                .unwrap()
+                .get_item()
+                .as_ref()
+                .unwrap()
+                .get_value();
+            symbol_table.add(symbol_type, kind.as_str(), name.as_str());
+            position += 2;
+        }
+
+        symbol_table
+    }
+
+    fn build_expression(&mut self, tree: &TokenTreeItem) -> Vec<String> {
         VmWriter::validate_name(tree, "expression");
 
         let mut result = Vec::new();
@@ -108,7 +389,7 @@ impl VmWriter {
         String::from(result)
     }
 
-    fn build_term(&self, tree: &TokenTreeItem) -> Vec<String> {
+    fn build_term(&mut self, tree: &TokenTreeItem) -> Vec<String> {
         VmWriter::validate_name(tree, "term");
         let mut result = Vec::new();
 
@@ -184,7 +465,7 @@ impl VmWriter {
         result
     }
 
-    fn build_statements(&self, tree: &TokenTreeItem) -> Vec<String> {
+    fn build_statements(&mut self, tree: &TokenTreeItem) -> Vec<String> {
         VmWriter::validate_name(tree, "statements");
         let mut result = Vec::new();
 
@@ -195,7 +476,7 @@ impl VmWriter {
         result
     }
 
-    fn build_let(&self, tree: &TokenTreeItem) -> Vec<String> {
+    fn build_let(&mut self, tree: &TokenTreeItem) -> Vec<String> {
         VmWriter::validate_name(tree, "letStatement");
         let mut result = Vec::new();
 
@@ -244,7 +525,7 @@ impl VmWriter {
         result
     }
 
-    fn build_return(&self, tree: &TokenTreeItem) -> Vec<String> {
+    fn build_return(&mut self, tree: &TokenTreeItem) -> Vec<String> {
         VmWriter::validate_name(tree, "returnStatement");
         let mut result = Vec::new();
 
@@ -258,7 +539,7 @@ impl VmWriter {
         result
     }
 
-    fn build_do(&self, tree: &TokenTreeItem) -> Vec<String> {
+    fn build_do(&mut self, tree: &TokenTreeItem) -> Vec<String> {
         VmWriter::validate_name(tree, "doStatement");
         let mut result = Vec::new();
 
@@ -296,7 +577,7 @@ impl VmWriter {
         result
     }
 
-    fn build_while(&self, tree: &TokenTreeItem) -> Vec<String> {
+    fn build_while(&mut self, tree: &TokenTreeItem) -> Vec<String> {
         VmWriter::validate_name(tree, "whileStatement");
         let mut result = Vec::new();
         let count = self.get_next_id();
@@ -318,7 +599,7 @@ impl VmWriter {
         result
     }
 
-    fn build_if(&self, tree: &TokenTreeItem) -> Vec<String> {
+    fn build_if(&mut self, tree: &TokenTreeItem) -> Vec<String> {
         VmWriter::validate_name(tree, "ifStatement");
         let mut result = Vec::new();
         let count = self.get_next_id();
@@ -348,7 +629,7 @@ impl VmWriter {
         result
     }
 
-    fn build_expression_list(&self, tree: &TokenTreeItem) -> Vec<String> {
+    fn build_expression_list(&mut self, tree: &TokenTreeItem) -> Vec<String> {
         VmWriter::validate_name(tree, "expressionList");
         let mut result = Vec::new();
 
@@ -383,7 +664,7 @@ impl VmWriter {
 mod tests {
     use super::*;
     use crate::{
-        parser::{Expression, Statement},
+        parser::{ClassNode, Expression, Statement},
         tokenizer::Tokenizer,
     };
 
@@ -392,7 +673,7 @@ mod tests {
         let tokenizer = Tokenizer::new("1 + 4 - 3");
         let tree = Expression::build(&tokenizer);
 
-        let writer = VmWriter::new();
+        let mut writer = VmWriter::new();
         let code: Vec<String> = writer.build(&tree);
 
         assert_eq!(code.get(0).unwrap(), "push constant 1");
@@ -407,7 +688,7 @@ mod tests {
         let tokenizer = Tokenizer::new("1 + (4 * 3)");
         let tree = Expression::build(&tokenizer);
 
-        let writer = VmWriter::new();
+        let mut writer = VmWriter::new();
         let code: Vec<String> = writer.build(&tree);
 
         assert_eq!(code.get(0).unwrap(), "push constant 1");
@@ -540,7 +821,7 @@ mod tests {
         let tokenizer = Tokenizer::new("return true;");
         let tree = Statement::build(&tokenizer);
 
-        let writer = VmWriter::new();
+        let mut writer = VmWriter::new();
         let code: Vec<String> = writer.build(&tree);
 
         assert_eq!(code.get(0).unwrap(), "push constant 0");
@@ -553,7 +834,7 @@ mod tests {
         let tokenizer = Tokenizer::new("return;");
         let tree = Statement::build(&tokenizer);
 
-        let writer = VmWriter::new();
+        let mut writer = VmWriter::new();
         let code: Vec<String> = writer.build(&tree);
 
         assert_eq!(code.get(0).unwrap(), "return");
@@ -564,7 +845,7 @@ mod tests {
         let tokenizer = Tokenizer::new("do Memory.deAlloc(this);");
         let tree = Statement::build(&tokenizer);
 
-        let writer = VmWriter::new();
+        let mut writer = VmWriter::new();
         let code: Vec<String> = writer.build(&tree);
 
         assert_eq!(code.get(0).unwrap(), "push pointer 0");
@@ -696,5 +977,29 @@ mod tests {
         assert_eq!(code.get(11).unwrap(), "pop temp 0");
 
         assert_eq!(code.get(12).unwrap(), "label IF_END1");
+    }
+
+    #[test]
+    fn build_constructor() {
+        let source = "class Test { field int a, b; constructor Test new(int set_a) { var boolean exit; let a = set_a; let b = 10; return this; } }";
+        let tokenizer = Tokenizer::new(source);
+        let tree = ClassNode::build(&tokenizer);
+        let mut writer = VmWriter::new();
+
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "function Test.new 1");
+        assert_eq!(code.get(1).unwrap(), "push constant 2");
+        assert_eq!(code.get(2).unwrap(), "call Memory.alloc 1");
+        assert_eq!(code.get(3).unwrap(), "pop pointer 0");
+
+        assert_eq!(code.get(4).unwrap(), "push argument 0");
+        assert_eq!(code.get(5).unwrap(), "pop this 0");
+
+        assert_eq!(code.get(6).unwrap(), "push constant 10");
+        assert_eq!(code.get(7).unwrap(), "pop this 1");
+
+        assert_eq!(code.get(8).unwrap(), "push pointer 0");
+        assert_eq!(code.get(9).unwrap(), "return");
     }
 }

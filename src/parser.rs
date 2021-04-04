@@ -51,10 +51,6 @@ impl TokenTreeItem {
     pub fn get_nodes(&self) -> &Vec<TokenTreeItem> {
         &self.nodes
     }
-
-    pub fn get_symbol_table(&self) -> &Option<SymbolTable> {
-        &self.symbol_table
-    }
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
@@ -94,7 +90,7 @@ impl SymbolItem {
     pub fn get_type_as_str(&self) -> String {
         let result = match self.symbol_type {
             SymbolType::Argument => "argument",
-            SymbolType::Field => "field",
+            SymbolType::Field => "this",
             SymbolType::Local => "local",
             SymbolType::StaticType => "static",
         };
@@ -129,12 +125,16 @@ impl SymbolTable {
         }
     }
 
-    fn clone(&self) -> SymbolTable {
+    pub fn clone(&self) -> SymbolTable {
         SymbolTable {
             symbols: Vec::from(self.symbols.clone()),
             indexes: HashMap::from(self.indexes.clone()),
             types: HashMap::from(self.types.clone()),
         }
+    }
+
+    pub fn count_fields(&self) -> usize {
+        *self.types.get(&SymbolType::Field).unwrap()
     }
 
     pub fn add(&mut self, symbol_type: &str, kind: &str, name: &str) {
@@ -717,7 +717,7 @@ mod tests {
         let symbol_table = SymbolTable::new();
 
         let result = SubroutineDec::build_subroutine(&tokenizer, &symbol_table);
-        let symbol_table = result.get_symbol_table().as_ref().unwrap();
+        let symbol_table = result.symbol_table.as_ref().unwrap();
 
         assert_eq!(symbol_table.symbols.len(), 4);
 
