@@ -532,6 +532,8 @@ impl VmWriter {
         if tree.get_nodes().len() == 3 {
             let expression = tree.get_nodes().get(1).unwrap();
             result.extend(self.build(expression));
+        } else {
+            result.push(String::from("push constant 0"));
         }
 
         result.push(String::from("return"));
@@ -837,7 +839,8 @@ mod tests {
         let mut writer = VmWriter::new();
         let code: Vec<String> = writer.build(&tree);
 
-        assert_eq!(code.get(0).unwrap(), "return");
+        assert_eq!(code.get(0).unwrap(), "push constant 0");
+        assert_eq!(code.get(1).unwrap(), "return");
     }
 
     #[test]
