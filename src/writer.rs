@@ -151,14 +151,22 @@ impl VmWriter {
             .unwrap()
             .get_value();
         let arguments = tree.get_nodes().get(4).unwrap();
-        let count_arguments = (arguments.get_nodes().len() + 1) / 3;
         let body = tree.get_nodes().get(6).unwrap();
+
+        let fields = body.get_nodes().get(1);
+        let fields = fields.as_ref().unwrap();
+
+        let count_fields: usize = if fields.get_name().as_ref().unwrap() == "varDec" {
+            (fields.get_nodes().len() - 2) / 2
+        } else {
+            0
+        };
 
         result.push(format!(
             "function {}.{} {}",
             self.get_class_name(),
             name,
-            count_arguments
+            count_fields
         ));
 
         match routine_type.as_str() {
@@ -261,14 +269,13 @@ impl VmWriter {
         let mut symbol_table = symbol_table.clone();
 
         let symbol_type = "argument";
-        let kind = tree
-            .get_nodes()
-            .get(0)
-            .unwrap()
-            .get_item()
-            .as_ref()
-            .unwrap()
-            .get_value();
+        let kind = tree.get_nodes().get(0);
+
+        if kind.is_none() {
+            return symbol_table;
+        }
+
+        let kind = kind.unwrap().get_item().as_ref().unwrap().get_value();
         let name = tree
             .get_nodes()
             .get(1)
@@ -1004,5 +1011,45 @@ mod tests {
 
         assert_eq!(code.get(8).unwrap(), "push pointer 0");
         assert_eq!(code.get(9).unwrap(), "return");
+    }
+
+    #[test]
+    fn build_function() {
+        let source = "class Main { function void main() { var int b; let b = 10; return; } }";
+        let tokenizer = Tokenizer::new(source);
+        let tree = ClassNode::build(&tokenizer);
+        let mut writer = VmWriter::new();
+
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "function Main.main 1");
+
+        assert_eq!(code.get(1).unwrap(), "push constant 10");
+        assert_eq!(code.get(2).unwrap(), "pop local 0");
+
+        assert_eq!(code.get(3).unwrap(), "push constant 0");
+        assert_eq!(code.get(4).unwrap(), "return");
+    }
+
+    #[test]
+    fn build_method() {
+        let source = "class Point { field int x; method int move(int size) { let x = x + size; return x; } }";
+        let tokenizer = Tokenizer::new(source);
+        let tree = ClassNode::build(&tokenizer);
+        let mut writer = VmWriter::new();
+
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "function Point.move 0");
+        assert_eq!(code.get(1).unwrap(), "push argument 0");
+        assert_eq!(code.get(2).unwrap(), "pop pointer 0");
+
+        assert_eq!(code.get(3).unwrap(), "push this 0");
+        assert_eq!(code.get(4).unwrap(), "push argument 0");
+        assert_eq!(code.get(5).unwrap(), "add");
+        assert_eq!(code.get(6).unwrap(), "pop this 0");
+
+        assert_eq!(code.get(7).unwrap(), "push this 0");
+        assert_eq!(code.get(8).unwrap(), "return");
     }
 }
