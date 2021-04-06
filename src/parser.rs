@@ -169,7 +169,7 @@ impl SymbolTable {
         let index = self
             .indexes
             .get(name)
-            .expect("Name nof found on indexes")
+            .expect(format!("Name not found on indexes: {}", name).as_str())
             .clone();
         self.symbols.get(index).unwrap()
     }

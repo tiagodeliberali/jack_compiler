@@ -383,8 +383,8 @@ impl VmWriter {
         let result = match op.get_item().as_ref().unwrap().get_value().as_str() {
             "+" => "add",
             "-" => "sub",
-            "*" => "Math.multiply 2",
-            "/" => "Math.divide 2",
+            "*" => "call Math.multiply 2",
+            "/" => "call Math.divide 2",
             "&" => "and",
             "|" => "or",
             ">" => "gt",
@@ -422,14 +422,31 @@ impl VmWriter {
             }
             TokenType::Identifier => {
                 let identifier = item.get_value();
-                result.push(self.get_symbol_table().get_push(identifier.as_str()));
 
                 if tree.get_nodes().len() == 4 {
+                    result.push(self.get_symbol_table().get_push(identifier.as_str()));
+
                     let another_term = tree.get_nodes().get(2).unwrap();
                     result.extend(self.build(another_term));
                     result.push(String::from("add"));
                     result.push(String::from("pop pointer 1"));
                     result.push(String::from("push that 0"));
+                } else if tree.get_nodes().len() == 6 {
+                    let another_identifier = tree.get_nodes().get(2).unwrap();
+                    let another_identifier =
+                        another_identifier.get_item().as_ref().unwrap().get_value();
+
+                    let expression_list = tree.get_nodes().get(4).unwrap();
+                    let count_arguments = (expression_list.get_nodes().len() + 1) / 2;
+
+                    result.extend(self.build(expression_list));
+
+                    result.push(format!(
+                        "call {}.{} {}",
+                        identifier, another_identifier, count_arguments
+                    ));
+                } else {
+                    result.push(self.get_symbol_table().get_push(identifier.as_str()));
                 }
             }
             TokenType::Keyword => {
@@ -703,7 +720,7 @@ mod tests {
         assert_eq!(code.get(0).unwrap(), "push constant 1");
         assert_eq!(code.get(1).unwrap(), "push constant 4");
         assert_eq!(code.get(2).unwrap(), "push constant 3");
-        assert_eq!(code.get(3).unwrap(), "Math.multiply 2");
+        assert_eq!(code.get(3).unwrap(), "call Math.multiply 2");
         assert_eq!(code.get(4).unwrap(), "add");
     }
 
@@ -1051,5 +1068,24 @@ mod tests {
 
         assert_eq!(code.get(7).unwrap(), "push this 0");
         assert_eq!(code.get(8).unwrap(), "return");
+    }
+
+    #[test]
+    fn build_function_with_os() {
+        let source = "class Main { function void main() { var int value; let value = Memory.peek(8000);  return; } }";
+        let tokenizer = Tokenizer::new(source);
+        let tree = ClassNode::build(&tokenizer);
+        let mut writer = VmWriter::new();
+
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "function Main.main 1");
+
+        assert_eq!(code.get(1).unwrap(), "push constant 8000");
+        assert_eq!(code.get(2).unwrap(), "call Memory.peek 1");
+        assert_eq!(code.get(3).unwrap(), "pop local 0");
+
+        assert_eq!(code.get(4).unwrap(), "push constant 0");
+        assert_eq!(code.get(5).unwrap(), "return");
     }
 }
