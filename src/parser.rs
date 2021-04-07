@@ -141,6 +141,14 @@ impl SymbolTable {
         *self.types.get(&SymbolType::Field).unwrap()
     }
 
+    pub fn increase_arguments(&mut self) {
+        for i in &mut self.symbols {
+            if i.symbol_type == SymbolType::Argument {
+                i.position += 1;
+            }
+        }
+    }
+
     pub fn add(&mut self, symbol_type: &str, kind: &str, name: &str) {
         let symbol_type = match symbol_type {
             "field" => SymbolType::Field,

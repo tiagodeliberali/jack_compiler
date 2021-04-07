@@ -28,6 +28,10 @@ impl VmWriter {
         &self.symbol_table
     }
 
+    pub fn increase_argument_position(&mut self) {
+        self.symbol_table.increase_arguments();
+    }
+
     fn set_symbol_table(&mut self, symbol_table: SymbolTable) {
         self.symbol_table = symbol_table;
     }
@@ -188,6 +192,11 @@ impl VmWriter {
         }
 
         result.extend(self.build(arguments));
+
+        if routine_type.as_str() == "method" {
+            self.increase_argument_position();
+        }
+
         result.extend(self.build(body));
 
         result
@@ -1085,7 +1094,7 @@ mod tests {
         assert_eq!(code.get(2).unwrap(), "pop pointer 0");
 
         assert_eq!(code.get(3).unwrap(), "push this 0");
-        assert_eq!(code.get(4).unwrap(), "push argument 0");
+        assert_eq!(code.get(4).unwrap(), "push argument 1");
         assert_eq!(code.get(5).unwrap(), "add");
         assert_eq!(code.get(6).unwrap(), "pop this 0");
 
