@@ -174,6 +174,10 @@ impl SymbolTable {
         self.symbols.get(index).unwrap()
     }
 
+    pub fn contains(&self, name: &str) -> bool {
+        self.indexes.get(name).is_some()
+    }
+
     pub fn get_pop(&self, name: &str) -> String {
         let symbol = self.get(name);
         format!("pop {} {}", symbol.get_type_as_str(), symbol.get_position())

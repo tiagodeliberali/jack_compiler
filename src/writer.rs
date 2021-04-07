@@ -429,19 +429,7 @@ impl VmWriter {
                     result.push(String::from("pop pointer 1"));
                     result.push(String::from("push that 0"));
                 } else if tree.get_nodes().len() == 6 {
-                    let another_identifier = tree.get_nodes().get(2).unwrap();
-                    let another_identifier =
-                        another_identifier.get_item().as_ref().unwrap().get_value();
-
-                    let expression_list = tree.get_nodes().get(4).unwrap();
-                    let count_arguments = (expression_list.get_nodes().len() + 1) / 2;
-
-                    result.extend(self.build(expression_list));
-
-                    result.push(format!(
-                        "call {}.{} {}",
-                        identifier, another_identifier, count_arguments
-                    ));
+                    result.extend(self.build_subroutine_call(tree, identifier.as_str(), 2));
                 } else {
                     result.push(self.get_symbol_table().get_push(identifier.as_str()));
                 }
@@ -581,21 +569,37 @@ impl VmWriter {
             self.get_class_name().clone()
         };
 
-        let method = tree
-            .get_nodes()
-            .get(base_index)
-            .unwrap()
-            .get_item()
-            .as_ref()
-            .unwrap()
-            .get_value();
-        let expression_list = tree.get_nodes().get(base_index + 2).unwrap();
-        let arguments = (expression_list.get_nodes().len() + 1) / 2;
+        result.extend(self.build_subroutine_call(tree, class_name.as_str(), base_index));
+        result.push(String::from("pop temp 0"));
+
+        result
+    }
+
+    fn build_subroutine_call(
+        &mut self,
+        tree: &TokenTreeItem,
+        identifier: &str,
+        base_item: usize,
+    ) -> Vec<String> {
+        let mut result = Vec::new();
+
+        let another_identifier = tree.get_nodes().get(base_item).unwrap();
+        let another_identifier = another_identifier.get_item().as_ref().unwrap().get_value();
+
+        let expression_list = tree.get_nodes().get(base_item + 2).unwrap();
+        let mut count_arguments = (expression_list.get_nodes().len() + 1) / 2;
+
+        if self.get_symbol_table().contains(identifier) {
+            result.push(self.get_symbol_table().get_push(identifier));
+            count_arguments += 1;
+        }
 
         result.extend(self.build(expression_list));
 
-        result.push(format!("call {}.{} {}", class_name, method, arguments));
-        result.push(String::from("pop temp 0"));
+        result.push(format!(
+            "call {}.{} {}",
+            identifier, another_identifier, count_arguments
+        ));
 
         result
     }
@@ -1084,5 +1088,28 @@ mod tests {
 
         assert_eq!(code.get(4).unwrap(), "push constant 0");
         assert_eq!(code.get(5).unwrap(), "return");
+    }
+
+    #[test]
+    fn build_function_with_instanc() {
+        let source = "class Main { function void main() { var Point value; let value = Point.new(); do value.sum(800); return; } }";
+        let tokenizer = Tokenizer::new(source);
+        let tree = ClassNode::build(&tokenizer);
+        let mut writer = VmWriter::new();
+
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "function Main.main 1");
+
+        assert_eq!(code.get(1).unwrap(), "call Point.new 0");
+        assert_eq!(code.get(2).unwrap(), "pop local 0");
+
+        assert_eq!(code.get(3).unwrap(), "push local 0");
+        assert_eq!(code.get(4).unwrap(), "push constant 800");
+        assert_eq!(code.get(5).unwrap(), "call value.sum 2");
+        assert_eq!(code.get(6).unwrap(), "pop temp 0");
+
+        assert_eq!(code.get(7).unwrap(), "push constant 0");
+        assert_eq!(code.get(8).unwrap(), "return");
     }
 }
