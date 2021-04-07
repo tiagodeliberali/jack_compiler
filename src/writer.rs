@@ -583,6 +583,8 @@ impl VmWriter {
     ) -> Vec<String> {
         let mut result = Vec::new();
 
+        let mut name = String::from(identifier);
+
         let another_identifier = tree.get_nodes().get(base_item).unwrap();
         let another_identifier = another_identifier.get_item().as_ref().unwrap().get_value();
 
@@ -591,6 +593,7 @@ impl VmWriter {
 
         if self.get_symbol_table().contains(identifier) {
             result.push(self.get_symbol_table().get_push(identifier));
+            name = self.get_symbol_table().get_type(identifier);
             count_arguments += 1;
         }
 
@@ -598,7 +601,9 @@ impl VmWriter {
 
         result.push(format!(
             "call {}.{} {}",
-            identifier, another_identifier, count_arguments
+            name.as_str(),
+            another_identifier,
+            count_arguments
         ));
 
         result
@@ -1106,7 +1111,7 @@ mod tests {
 
         assert_eq!(code.get(3).unwrap(), "push local 0");
         assert_eq!(code.get(4).unwrap(), "push constant 800");
-        assert_eq!(code.get(5).unwrap(), "call value.sum 2");
+        assert_eq!(code.get(5).unwrap(), "call Point.sum 2");
         assert_eq!(code.get(6).unwrap(), "pop temp 0");
 
         assert_eq!(code.get(7).unwrap(), "push constant 0");

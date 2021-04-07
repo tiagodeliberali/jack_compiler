@@ -101,6 +101,10 @@ impl SymbolItem {
     pub fn get_position(&self) -> usize {
         self.position
     }
+
+    pub fn get_kind(&self) -> String {
+        self.kind.clone()
+    }
 }
 
 pub struct SymbolTable {
@@ -190,6 +194,11 @@ impl SymbolTable {
             symbol.get_type_as_str(),
             symbol.get_position()
         )
+    }
+
+    pub fn get_type(&self, name: &str) -> String {
+        let symbol = self.get(name);
+        symbol.get_kind()
     }
 }
 
