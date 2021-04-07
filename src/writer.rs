@@ -24,10 +24,6 @@ impl VmWriter {
         &self.class_symbol_table
     }
 
-    fn set_class_symbol_table(&mut self, symbol_table: SymbolTable) {
-        self.class_symbol_table = symbol_table;
-    }
-
     pub fn get_symbol_table(&self) -> &SymbolTable {
         &self.symbol_table
     }
@@ -72,8 +68,7 @@ impl VmWriter {
             "expressionList" => self.build_expression_list(tree),
             "class" => self.build_class(tree),
             "classVarDec" => {
-                let symbol_table = self.build_class_var_dec(tree);
-                self.set_class_symbol_table(symbol_table);
+                self.build_class_var_dec(tree);
                 Vec::new()
             }
             "subroutineDec" => self.build_subroutine_dec(tree),
@@ -117,12 +112,13 @@ impl VmWriter {
             .get_value();
         self.set_class_name(class_name);
 
-        let item = tree.get_nodes().get(3).unwrap();
-        result.extend(self.build(item));
+        let mut next_item = 3;
 
-        if tree.get_nodes().len() > 5 {
-            let item = tree.get_nodes().get(4).unwrap();
+        while tree.get_nodes().len() > next_item + 1 {
+            let item = tree.get_nodes().get(next_item).unwrap();
             result.extend(self.build(item));
+
+            next_item += 1;
         }
 
         result
@@ -153,14 +149,19 @@ impl VmWriter {
         let arguments = tree.get_nodes().get(4).unwrap();
         let body = tree.get_nodes().get(6).unwrap();
 
-        let fields = body.get_nodes().get(1);
-        let fields = fields.as_ref().unwrap();
+        let mut count_fields = 0;
+        let mut var_dec_item = 1;
 
-        let count_fields: usize = if fields.get_name().as_ref().unwrap() == "varDec" {
-            (fields.get_nodes().len() - 2) / 2
-        } else {
-            0
-        };
+        while body.get_nodes().len() > var_dec_item {
+            let fields = body.get_nodes().get(var_dec_item);
+            let fields = fields.as_ref().unwrap();
+            if fields.get_name().as_ref().unwrap() == "varDec" {
+                count_fields += (fields.get_nodes().len() - 2) / 2;
+            } else {
+                break;
+            };
+            var_dec_item += 1;
+        }
 
         result.push(format!(
             "function {}.{} {}",
@@ -197,22 +198,18 @@ impl VmWriter {
 
         let mut result = Vec::new();
 
-        if tree.get_nodes().len() > 2 {
-            let item = tree.get_nodes().get(1).unwrap();
-            result.extend(self.build(item));
-        }
+        let mut next_item = 1;
 
-        if tree.get_nodes().len() > 3 {
-            let item = tree.get_nodes().get(2).unwrap();
+        while tree.get_nodes().len() > next_item + 1 {
+            let item = tree.get_nodes().get(next_item).unwrap();
             result.extend(self.build(item));
+            next_item += 1;
         }
 
         result
     }
-    fn build_class_var_dec(&mut self, tree: &TokenTreeItem) -> SymbolTable {
+    fn build_class_var_dec(&mut self, tree: &TokenTreeItem) {
         VmWriter::validate_name(tree, "classVarDec");
-
-        let mut symbol_table = SymbolTable::new();
 
         let symbol_type = tree
             .get_nodes()
@@ -239,7 +236,8 @@ impl VmWriter {
             .unwrap()
             .get_value();
 
-        symbol_table.add(symbol_type.as_str(), kind.as_str(), name.as_str());
+        self.class_symbol_table
+            .add(symbol_type.as_str(), kind.as_str(), name.as_str());
 
         let mut position = 4;
 
@@ -252,11 +250,10 @@ impl VmWriter {
                 .as_ref()
                 .unwrap()
                 .get_value();
-            symbol_table.add(symbol_type.as_str(), kind.as_str(), name.as_str());
+            self.class_symbol_table
+                .add(symbol_type.as_str(), kind.as_str(), name.as_str());
             position += 2;
         }
-
-        symbol_table
     }
 
     fn build_parameter_list(
@@ -1032,14 +1029,14 @@ mod tests {
 
     #[test]
     fn build_function() {
-        let source = "class Main { function void main() { var int b; let b = 10; return; } }";
+        let source = "class Main { function void main() { var int b; var boolean exit; let b = 10; return; } }";
         let tokenizer = Tokenizer::new(source);
         let tree = ClassNode::build(&tokenizer);
         let mut writer = VmWriter::new();
 
         let code: Vec<String> = writer.build(&tree);
 
-        assert_eq!(code.get(0).unwrap(), "function Main.main 1");
+        assert_eq!(code.get(0).unwrap(), "function Main.main 2");
 
         assert_eq!(code.get(1).unwrap(), "push constant 10");
         assert_eq!(code.get(2).unwrap(), "pop local 0");
