@@ -421,13 +421,20 @@ impl VmWriter {
                 let identifier = item.get_value();
 
                 if tree.get_nodes().len() == 4 {
-                    result.push(self.get_symbol_table().get_push(identifier.as_str()));
+                    let symbol = tree.get_nodes().get(1).unwrap();
+                    let symbol = symbol.get_item().as_ref().unwrap().get_value();
 
-                    let another_term = tree.get_nodes().get(2).unwrap();
-                    result.extend(self.build(another_term));
-                    result.push(String::from("add"));
-                    result.push(String::from("pop pointer 1"));
-                    result.push(String::from("push that 0"));
+                    if symbol == "[" {
+                        result.push(self.get_symbol_table().get_push(identifier.as_str()));
+
+                        let another_term = tree.get_nodes().get(2).unwrap();
+                        result.extend(self.build(another_term));
+                        result.push(String::from("add"));
+                        result.push(String::from("pop pointer 1"));
+                        result.push(String::from("push that 0"));
+                    } else {
+                        result.extend(self.build_subroutine_call(tree, "", 0));
+                    }
                 } else if tree.get_nodes().len() == 6 {
                     result.extend(self.build_subroutine_call(tree, identifier.as_str(), 2));
                 } else {
@@ -566,7 +573,7 @@ impl VmWriter {
                 .unwrap()
                 .get_value()
         } else {
-            self.get_class_name().clone()
+            String::new()
         };
 
         result.extend(self.build_subroutine_call(tree, class_name.as_str(), base_index));
@@ -594,6 +601,12 @@ impl VmWriter {
         if self.get_symbol_table().contains(identifier) {
             result.push(self.get_symbol_table().get_push(identifier));
             name = self.get_symbol_table().get_type(identifier);
+            count_arguments += 1;
+        }
+
+        if identifier.len() == 0 {
+            name = self.get_class_name().clone();
+            result.push(String::from("push pointer 0"));
             count_arguments += 1;
         }
 
@@ -901,11 +914,12 @@ mod tests {
         writer.set_class_name(String::from("TestClass"));
         let code: Vec<String> = writer.build(&tree);
 
-        assert_eq!(code.get(0).unwrap(), "push local 0");
-        assert_eq!(code.get(1).unwrap(), "push local 1");
-        assert_eq!(code.get(2).unwrap(), "push local 2");
-        assert_eq!(code.get(3).unwrap(), "call TestClass.print 3");
-        assert_eq!(code.get(4).unwrap(), "pop temp 0");
+        assert_eq!(code.get(0).unwrap(), "push pointer 0");
+        assert_eq!(code.get(1).unwrap(), "push local 0");
+        assert_eq!(code.get(2).unwrap(), "push local 1");
+        assert_eq!(code.get(3).unwrap(), "push local 2");
+        assert_eq!(code.get(4).unwrap(), "call TestClass.print 4");
+        assert_eq!(code.get(5).unwrap(), "pop temp 0");
     }
 
     #[test]
@@ -967,11 +981,12 @@ mod tests {
         assert_eq!(code.get(3).unwrap(), "goto IF_FALSE1");
         assert_eq!(code.get(4).unwrap(), "label IF_TRUE1");
 
-        assert_eq!(code.get(5).unwrap(), "push constant 10");
-        assert_eq!(code.get(6).unwrap(), "call TestClass.print 1");
-        assert_eq!(code.get(7).unwrap(), "pop temp 0");
+        assert_eq!(code.get(5).unwrap(), "push pointer 0");
+        assert_eq!(code.get(6).unwrap(), "push constant 10");
+        assert_eq!(code.get(7).unwrap(), "call TestClass.print 2");
+        assert_eq!(code.get(8).unwrap(), "pop temp 0");
 
-        assert_eq!(code.get(8).unwrap(), "label IF_FALSE1");
+        assert_eq!(code.get(9).unwrap(), "label IF_FALSE1");
     }
 
     #[test]
@@ -999,17 +1014,19 @@ mod tests {
         assert_eq!(code.get(3).unwrap(), "goto IF_FALSE1");
         assert_eq!(code.get(4).unwrap(), "label IF_TRUE1");
 
-        assert_eq!(code.get(5).unwrap(), "push constant 10");
-        assert_eq!(code.get(6).unwrap(), "call TestClass.print 1");
-        assert_eq!(code.get(7).unwrap(), "pop temp 0");
+        assert_eq!(code.get(5).unwrap(), "push pointer 0");
+        assert_eq!(code.get(6).unwrap(), "push constant 10");
+        assert_eq!(code.get(7).unwrap(), "call TestClass.print 2");
+        assert_eq!(code.get(8).unwrap(), "pop temp 0");
 
-        assert_eq!(code.get(8).unwrap(), "goto IF_END1");
-        assert_eq!(code.get(9).unwrap(), "label IF_FALSE1");
+        assert_eq!(code.get(9).unwrap(), "goto IF_END1");
+        assert_eq!(code.get(10).unwrap(), "label IF_FALSE1");
 
-        assert_eq!(code.get(10).unwrap(), "call TestClass.exit 0");
-        assert_eq!(code.get(11).unwrap(), "pop temp 0");
+        assert_eq!(code.get(11).unwrap(), "push pointer 0");
+        assert_eq!(code.get(12).unwrap(), "call TestClass.exit 1");
+        assert_eq!(code.get(13).unwrap(), "pop temp 0");
 
-        assert_eq!(code.get(12).unwrap(), "label IF_END1");
+        assert_eq!(code.get(14).unwrap(), "label IF_END1");
     }
 
     #[test]
@@ -1096,7 +1113,7 @@ mod tests {
     }
 
     #[test]
-    fn build_function_with_instanc() {
+    fn build_function_with_instance() {
         let source = "class Main { function void main() { var Point value; let value = Point.new(); do value.sum(800); return; } }";
         let tokenizer = Tokenizer::new(source);
         let tree = ClassNode::build(&tokenizer);
@@ -1116,5 +1133,43 @@ mod tests {
 
         assert_eq!(code.get(7).unwrap(), "push constant 0");
         assert_eq!(code.get(8).unwrap(), "return");
+    }
+
+    #[test]
+    fn build_call_with_local_method_call() {
+        let source = "class Main { function void main() { do print(); return; } method void print() {return;} }";
+        let tokenizer = Tokenizer::new(source);
+        let tree = ClassNode::build(&tokenizer);
+        let mut writer = VmWriter::new();
+
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "function Main.main 0");
+
+        assert_eq!(code.get(1).unwrap(), "push pointer 0");
+        assert_eq!(code.get(2).unwrap(), "call Main.print 1");
+        assert_eq!(code.get(3).unwrap(), "pop temp 0");
+
+        assert_eq!(code.get(4).unwrap(), "push constant 0");
+        assert_eq!(code.get(5).unwrap(), "return");
+    }
+
+    #[test]
+    fn build_call_let_with_local_method_call() {
+        let source = "class Main { function void main() { var int x; let x = ten(); return; } method int ten() { return 10; } }";
+        let tokenizer = Tokenizer::new(source);
+        let tree = ClassNode::build(&tokenizer);
+        let mut writer = VmWriter::new();
+
+        let code: Vec<String> = writer.build(&tree);
+
+        assert_eq!(code.get(0).unwrap(), "function Main.main 1");
+
+        assert_eq!(code.get(1).unwrap(), "push pointer 0");
+        assert_eq!(code.get(2).unwrap(), "call Main.ten 1");
+        assert_eq!(code.get(3).unwrap(), "pop local 0");
+
+        assert_eq!(code.get(4).unwrap(), "push constant 0");
+        assert_eq!(code.get(5).unwrap(), "return");
     }
 }
